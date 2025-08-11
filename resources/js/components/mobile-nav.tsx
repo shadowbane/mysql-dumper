@@ -7,7 +7,7 @@ export function MobileNav() {
 
     const links = [
         { href: route('dashboard'), label: 'Dashboard' },
-        { href: route('data-sources'), label: 'Data Sources' },
+        { href: route('data-sources.index'), label: 'Data Sources' },
         { href: route('schedules'), label: 'Schedules' },
         { href: route('logs'), label: 'Backup Logs' },
     ];

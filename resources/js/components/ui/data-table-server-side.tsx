@@ -52,7 +52,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {toast} from "@/hooks/use-toast";
+import {toast} from "sonner";
 import {Textarea} from "@/components/ui/textarea";
 import {Checkbox} from "@/components/ui/checkbox";
 import {cn} from "@/lib/utils";
@@ -426,16 +426,12 @@ export function DataTable<TData extends Record<string, any>, TValue>({
             preserveScroll: true,
             onError: (errors: any) => {
                 const errorMessage = errors?.message || errors?.error || errors?.[0] || `An error occurred while deleting ${actions.delete?.name || 'item'}`;
-                toast({
-                    title: "Error",
+                toast.error("Error", {
                     description: errorMessage,
-                    variant: "destructive",
                 });
             },
             onSuccess: () => {
-                toast({
-                    title: `${actions.delete?.name || 'Item'} deleted successfully`,
-                });
+                toast.success(`${actions.delete?.name || 'Item'} deleted successfully`);
                 cleanupDeleteAlert();
             },
             onFinish: () => {
@@ -462,10 +458,8 @@ export function DataTable<TData extends Record<string, any>, TValue>({
 
         // Validate reason - minimum 3 characters as required by the backend
         if (!cancelReason || cancelReason.trim().length < 3) {
-            toast({
-                title: "Error",
+            toast.error("Error", {
                 description: "Please provide a valid reason for cancellation (at least 3 characters).",
-                variant: "destructive",
             });
             return;
         }
@@ -477,16 +471,12 @@ export function DataTable<TData extends Record<string, any>, TValue>({
             preserveScroll: true,
             onError: (errors: any) => {
                 const errorMessage = errors?.message || errors?.[0] || `An error occurred while cancelling ${actions.cancel?.name || 'item'}`;
-                toast({
-                    title: "Error",
+                toast.error("Error", {
                     description: errorMessage,
-                    variant: "destructive",
                 });
             },
             onSuccess: () => {
-                toast({
-                    title: `${actions.cancel?.name || 'Item'} cancelled successfully`,
-                });
+                toast.success(`${actions.cancel?.name || 'Item'} cancelled successfully`);
                 cleanupCancelAlert();
             },
             onFinish: () => {
@@ -554,10 +544,8 @@ export function DataTable<TData extends Record<string, any>, TValue>({
                                 if (checked) {
                                     // Check max selections limit
                                     if (selectable?.maxSelections && newSelection.size >= selectable.maxSelections) {
-                                        toast({
-                                            title: "Selection Limit Reached",
+                                        toast.error("Selection Limit Reached", {
                                             description: `You can only select up to ${selectable.maxSelections} items at once.`,
-                                            variant: "destructive",
                                         });
                                         return;
                                     }

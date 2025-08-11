@@ -2,7 +2,9 @@
 
 namespace App\DTO;
 
-readonly class ConnectionDTO
+use Spatie\LaravelData\Data;
+
+class ConnectionDTO extends Data
 {
     public function __construct(
         public string $host,

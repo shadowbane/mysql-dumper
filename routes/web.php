@@ -21,10 +21,12 @@ Route::middleware('auth')->group(function () {
     Route::any('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
 
-    // Placeholder routes
     // Data Sources
-    Route::get('data-sources', fn () => response()->json(['message' => 'Under Construction']))
-        ->name('data-sources');
+    Route::resource('data-sources', \App\Http\Controllers\DataSourceController::class);
+    Route::post('data-sources/{data_source}/test-connection', [\App\Http\Controllers\DataSourceController::class, 'testConnection'])
+        ->name('data-sources.test');
+    Route::post('data-sources/test-connection', [\App\Http\Controllers\DataSourceController::class, 'testConnectionData'])
+        ->name('data-sources.test-data');
     // Schedules
     Route::get('schedules', fn () => response()->json(['message' => 'Under Construction']))
         ->name('schedules');
