@@ -1,0 +1,66 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "blank_line_after_namespace": true,
+        "no_unused_imports": true,
+        "no_useless_else": true,
+        "no_trailing_comma_in_singleline_function_call": true,
+        "single_line_after_imports": true,
+        "single_quote": true,
+        "combine_consecutive_unsets": true,
+        "phpdoc_indent": true,
+        "phpdoc_no_access": true,
+        "phpdoc_no_package": false,
+        "ordered_traits": false,
+        "phpdoc_no_useless_inheritdoc": true,
+        "phpdoc_scalar": true,
+        "phpdoc_single_line_var_spacing": true,
+        "phpdoc_summary": true,
+        "phpdoc_trim": true,
+        "phpdoc_trim_consecutive_blank_line_separation": true,
+        "phpdoc_inline_tag_normalizer": false,
+        "phpdoc_types": true,
+        "phpdoc_var_without_name": true,
+        "space_after_semicolon": true,
+        "function_declaration": {
+            "closure_fn_spacing": "none",
+            "closure_function_spacing": "one"
+        },
+        "class_attributes_separation": {
+            "elements": {
+                "const": "one",
+                "method": "one",
+                "property": "none",
+                "trait_import": "none"
+            }
+        },
+        "visibility_required": {
+            "elements": [
+                "method",
+                "property"
+            ]
+        },
+        "array_syntax": {
+            "syntax": "short"
+        },
+        "concat_space": {
+            "spacing": "none"
+        },
+        "curly_braces_position": {
+            "classes_opening_brace": "next_line_unless_newline_at_signature_end"
+        },
+        "phpdoc_order": {
+            "order": [
+                "param",
+                "throws",
+                "return"
+            ]
+        },
+        "return_type_declaration": {
+            "space_before": "none"
+        },
+        "ternary_to_null_coalescing": true,
+        "void_return": false,
+        "no_superfluous_phpdoc_tags": false
+    }
+}
