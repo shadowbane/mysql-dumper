@@ -22,6 +22,7 @@ class UpdateDataSourceRequest extends FormRequest
             'password' => ['nullable', 'string'],
             'is_active' => ['boolean'],
             'skipped_tables' => ['nullable', 'string'],
+            'structure_only' => ['nullable', 'string'],
         ];
     }
 }

@@ -6,6 +6,8 @@ export interface DataSource extends BaseModel {
     port: number;
     database: string;
     username: string;
+    password: string | null;
     is_active: boolean;
     skipped_tables: string | null;
+    structure_only: string | null;
 }

@@ -22,6 +22,7 @@ class StoreDataSourceRequest extends FormRequest
             'password' => ['required', 'string'],
             'is_active' => ['boolean'],
             'skipped_tables' => ['nullable', 'string'],
+            'structure_only' => ['nullable', 'string'],
         ];
     }
 }

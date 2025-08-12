@@ -14,6 +14,7 @@ class ConnectionDTO extends Data
         public string $password,
         public bool $compression = true,
         public array $skippedTables = [],
+        public array $structureOnly = [],
         public ?string $connectionName = null,
         public array $additionalOptions = []
     ) {}
@@ -28,6 +29,7 @@ class ConnectionDTO extends Data
             password: $data['password'],
             compression: $data['compression'] ?? true,
             skippedTables: $data['skipped_tables'] ?? [],
+            structureOnly: $data['structure_only'] ?? [],
             connectionName: $data['connection_name'] ?? null,
             additionalOptions: $data['additional_options'] ?? []
         );
@@ -43,6 +45,7 @@ class ConnectionDTO extends Data
             'password' => $this->password,
             'compression' => $this->compression,
             'skipped_tables' => $this->skippedTables,
+            'structure_only' => $this->structureOnly,
             'connection_name' => $this->connectionName,
             'additional_options' => $this->additionalOptions,
         ];

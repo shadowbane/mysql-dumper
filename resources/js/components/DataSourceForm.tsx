@@ -1,65 +1,70 @@
 import React, { useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+    Form,
+    FormControl,
+    FormDescription,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from '@/components/ui/form';
 import { Loader2, Plug2, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { DataSource } from '@/types/datasource';
+import {
+    dataSourceSchema,
+    dataSourceEditSchema,
+    DataSourceFormData,
+    DataSourceEditFormData
+} from '@/schemas/dataSourceSchema';
 
 interface DataSourceFormProps {
     dataSource?: DataSource;
-    onSubmit: (data: any) => void;
+    onSubmit: (data: DataSourceFormData | DataSourceEditFormData) => void;
     isEditing?: boolean;
-}
-
-interface FormData {
-    name: string;
-    host: string;
-    port: number;
-    database: string;
-    username: string;
-    password: string;
-    is_active: boolean;
-    skipped_tables: string;
 }
 
 export default function DataSourceForm({ dataSource, onSubmit, isEditing = false }: DataSourceFormProps) {
     const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
-    
-    const { data, setData, processing, errors, clearErrors } = useForm<FormData>({
-        name: dataSource?.name || '',
-        host: dataSource?.host || '',
-        port: dataSource?.port || 3306,
-        database: dataSource?.database || '',
-        username: dataSource?.username || '',
-        password: '',
-        is_active: dataSource?.is_active ?? true,
-        skipped_tables: typeof dataSource?.skipped_tables === 'string' 
-            ? dataSource.skipped_tables 
-            : Array.isArray(dataSource?.skipped_tables) 
-            ? dataSource.skipped_tables.join(', ')
-            : '',
+
+    const schema = isEditing ? dataSourceEditSchema : dataSourceSchema;
+    const form = useForm<DataSourceFormData | DataSourceEditFormData>({
+        resolver: zodResolver(schema),
+        defaultValues: {
+            name: dataSource?.name || '',
+            host: dataSource?.host || '',
+            port: dataSource?.port || 3306,
+            database: dataSource?.database || '',
+            username: dataSource?.username || '',
+            password: '',
+            is_active: dataSource?.is_active ?? true,
+            skipped_tables: dataSource?.skipped_tables || '',
+            structure_only: dataSource?.structure_only || '',
+        },
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onSubmit(data);
+    const handleSubmit = (values: DataSourceFormData | DataSourceEditFormData) => {
+        onSubmit(values);
     };
 
     const testConnection = async () => {
         // Clear previous connection status
         setConnectionStatus('idle');
-        
+
         // Validate required fields for connection test
         const requiredFields = ['host', 'port', 'database', 'username', 'password'];
-        const missingFields = requiredFields.filter(field => !data[field as keyof FormData]);
-        
+        const formData = form.getValues();
+        const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
+
         if (missingFields.length > 0) {
             toast.error('Missing required fields', {
                 description: `Please fill in: ${missingFields.join(', ')}`,
@@ -70,12 +75,13 @@ export default function DataSourceForm({ dataSource, onSubmit, isEditing = false
         setIsTestingConnection(true);
 
         try {
+            const formData = form.getValues();
             const testData = {
-                host: data.host,
-                port: data.port,
-                database: data.database,
-                username: data.username,
-                password: data.password,
+                host: formData.host,
+                port: formData.port,
+                database: formData.database,
+                username: formData.username,
+                password: formData.password,
             };
 
             const response = await fetch('/data-sources/test-connection', {
@@ -111,227 +117,287 @@ export default function DataSourceForm({ dataSource, onSubmit, isEditing = false
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Basic Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="name">Name</Label>
-                            <Input
-                                id="name"
-                                type="text"
-                                value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
-                                placeholder="My Database Connection"
-                                className={errors.name ? 'border-red-500' : ''}
-                            />
-                            {errors.name && (
-                                <p className="text-sm text-red-500">{errors.name}</p>
-                            )}
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                            <Switch
-                                id="is_active"
-                                checked={data.is_active}
-                                onCheckedChange={(checked) => setData('is_active', checked)}
-                            />
-                            <Label htmlFor="is_active">Active</Label>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                        Connection Details
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={testConnection}
-                            disabled={isTestingConnection}
-                            className="ml-2"
-                        >
-                            {isTestingConnection ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                            ) : (
-                                <Plug2 className="h-4 w-4 mr-1" />
-                            )}
-                            Test Connection
-                        </Button>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {connectionStatus !== 'idle' && (
-                        <Alert className={connectionStatus === 'success' ? 'border-green-500' : 'border-red-500'}>
-                            <div className="flex items-center">
-                                {connectionStatus === 'success' ? (
-                                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                                ) : (
-                                    <AlertCircle className="h-4 w-4 text-red-500 mr-2" />
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Basic Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Name</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                placeholder="My Database Connection"
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
                                 )}
-                                <AlertDescription>
-                                    {connectionStatus === 'success' 
-                                        ? 'Connection successful! You can save this data source.' 
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="is_active"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Active</FormLabel>
+                                            <FormDescription>
+                                                Enable or disable this data source
+                                            </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                            Connection Details
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={testConnection}
+                                disabled={isTestingConnection}
+                                className="ml-2"
+                            >
+                                {isTestingConnection ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                ) : (
+                                    <Plug2 className="h-4 w-4 mr-1" />
+                                )}
+                                Test Connection
+                            </Button>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {connectionStatus !== 'idle' && (
+                            <Alert
+                                className={
+                                    connectionStatus === 'success'
+                                        ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'
+                                        : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950'
+                                }
+                            >
+                                {connectionStatus === 'success' ? (
+                                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                ) : (
+                                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                )}
+                                <AlertDescription className={connectionStatus === 'success' ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}>
+                                    {connectionStatus === 'success'
+                                        ? 'Connection successful! You can save this data source.'
                                         : 'Connection failed. Please check your connection details.'}
                                 </AlertDescription>
-                            </div>
-                        </Alert>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="host">Host</Label>
-                            <Input
-                                id="host"
-                                type="text"
-                                value={data.host}
-                                onChange={(e) => {
-                                    setData('host', e.target.value);
-                                    setConnectionStatus('idle');
-                                }}
-                                placeholder="localhost or 127.0.0.1"
-                                className={errors.host ? 'border-red-500' : ''}
-                            />
-                            {errors.host && (
-                                <p className="text-sm text-red-500">{errors.host}</p>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="port">Port</Label>
-                            <Input
-                                id="port"
-                                type="number"
-                                value={data.port}
-                                onChange={(e) => {
-                                    setData('port', parseInt(e.target.value) || 3306);
-                                    setConnectionStatus('idle');
-                                }}
-                                placeholder="3306"
-                                className={errors.port ? 'border-red-500' : ''}
-                            />
-                            {errors.port && (
-                                <p className="text-sm text-red-500">{errors.port}</p>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="database">Database Name</Label>
-                        <Input
-                            id="database"
-                            type="text"
-                            value={data.database}
-                            onChange={(e) => {
-                                setData('database', e.target.value);
-                                setConnectionStatus('idle');
-                            }}
-                            placeholder="my_database"
-                            className={errors.database ? 'border-red-500' : ''}
-                        />
-                        {errors.database && (
-                            <p className="text-sm text-red-500">{errors.database}</p>
+                            </Alert>
                         )}
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="username">Username</Label>
-                            <Input
-                                id="username"
-                                type="text"
-                                value={data.username}
-                                onChange={(e) => {
-                                    setData('username', e.target.value);
-                                    setConnectionStatus('idle');
-                                }}
-                                placeholder="database_user"
-                                className={errors.username ? 'border-red-500' : ''}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="host"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Host</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                placeholder="localhost or 127.0.0.1"
+                                                onChange={(e) => {
+                                                    field.onChange(e.target.value);
+                                                    setConnectionStatus('idle');
+                                                }}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
                             />
-                            {errors.username && (
-                                <p className="text-sm text-red-500">{errors.username}</p>
-                            )}
+
+                            <FormField
+                                control={form.control}
+                                name="port"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Port</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                type="number"
+                                                placeholder="3306"
+                                                onChange={(e) => {
+                                                    field.onChange(parseInt(e.target.value) || 3306);
+                                                    setConnectionStatus('idle');
+                                                }}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="password">
-                                Password {isEditing && <span className="text-sm text-muted-foreground">(leave blank to keep current)</span>}
-                            </Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                value={data.password}
-                                onChange={(e) => {
-                                    setData('password', e.target.value);
-                                    setConnectionStatus('idle');
-                                }}
-                                placeholder={isEditing ? "Leave blank to keep current" : "database_password"}
-                                className={errors.password ? 'border-red-500' : ''}
-                            />
-                            {errors.password && (
-                                <p className="text-sm text-red-500">{errors.password}</p>
+                        <FormField
+                            control={form.control}
+                            name="database"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Database Name</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            {...field}
+                                            placeholder="my_database"
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                setConnectionStatus('idle');
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
                             )}
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Backup Options</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="skipped_tables">
-                            Skipped Tables
-                        </Label>
-                        <Textarea
-                            id="skipped_tables"
-                            value={data.skipped_tables}
-                            onChange={(e) => setData('skipped_tables', e.target.value)}
-                            placeholder="cache, sessions, job_batches, activity_log"
-                            className={`min-h-[100px] ${errors.skipped_tables ? 'border-red-500' : ''}`}
                         />
-                        <p className="text-sm text-muted-foreground">
-                            Enter table names separated by commas. These tables will be excluded from backups.
-                        </p>
-                        {errors.skipped_tables && (
-                            <p className="text-sm text-red-500">{errors.skipped_tables}</p>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
 
-            <div className="flex items-center gap-2">
-                <Button 
-                    type="submit" 
-                    disabled={processing}
-                    className="min-w-[120px]"
-                >
-                    {processing ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Saving...
-                        </>
-                    ) : (
-                        isEditing ? 'Update' : 'Create'
-                    )}
-                </Button>
-                
-                <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => window.history.back()}
-                >
-                    Cancel
-                </Button>
-            </div>
-        </form>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="username"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Username</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                placeholder="database_user"
+                                                onChange={(e) => {
+                                                    field.onChange(e.target.value);
+                                                    setConnectionStatus('idle');
+                                                }}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="password"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>
+                                            Password {isEditing && <span className="text-sm text-muted-foreground">(leave blank to keep current)</span>}
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                type="password"
+                                                placeholder={isEditing ? "Leave blank to keep current" : "database_password"}
+                                                onChange={(e) => {
+                                                    field.onChange(e.target.value);
+                                                    setConnectionStatus('idle');
+                                                }}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Backup Options</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="skipped_tables"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Skipped Tables</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            {...field}
+                                            placeholder="cache, sessions, job_batches, activity_log"
+                                            className="min-h-[100px]"
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        Enter table names separated by commas. These tables will be excluded from backups.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="structure_only"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Structure Only Tables</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            {...field}
+                                            placeholder="logs, temporary_data, cache_entries"
+                                            className="min-h-[100px]"
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        Enter table names separated by commas. For these tables, only the structure (DDL) will be backed up, data will be skipped.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
+
+                <div className="flex items-center gap-2">
+                    <Button
+                        type="submit"
+                        disabled={form.formState.isSubmitting}
+                        className="min-w-[120px]"
+                    >
+                        {form.formState.isSubmitting ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                Saving...
+                            </>
+                        ) : (
+                            isEditing ? 'Update' : 'Create'
+                        )}
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => window.history.back()}
+                    >
+                        Cancel
+                    </Button>
+                </div>
+            </form>
+        </Form>
     );
 }

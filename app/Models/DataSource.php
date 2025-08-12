@@ -18,6 +18,7 @@ class DataSource extends Model
         'password',
         'is_active',
         'skipped_tables',
+        'structure_only',
     ];
     protected $hidden = [
         'password',
@@ -26,5 +27,6 @@ class DataSource extends Model
         'is_active' => 'boolean',
         'password' => 'encrypted',
         'skipped_tables' => 'array',
+        'structure_only' => 'array',
     ];
 }

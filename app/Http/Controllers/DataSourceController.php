@@ -10,6 +10,7 @@ use App\Models\DataSource;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,9 +21,10 @@ class DataSourceController extends Controller
     ) {}
 
     /**
+     * @param  Request  $request
      * @return Response
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
         return Inertia::render('DataSources/Index', [
             'dataSources' => DataSource::latest()->paginate(),
@@ -30,9 +32,10 @@ class DataSourceController extends Controller
     }
 
     /**
+     * @param  Request  $request
      * @return Response
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('DataSources/Create');
     }
@@ -50,10 +53,11 @@ class DataSourceController extends Controller
     }
 
     /**
+     * @param  Request  $request
      * @param  DataSource  $dataSource
      * @return Response
      */
-    public function edit(DataSource $dataSource): Response
+    public function edit(Request $request, DataSource $dataSource): Response
     {
         return Inertia::render('DataSources/Edit', [
             'dataSource' => $dataSource,
@@ -79,10 +83,11 @@ class DataSourceController extends Controller
     }
 
     /**
+     * @param  Request  $request
      * @param  DataSource  $dataSource
      * @return RedirectResponse
      */
-    public function destroy(DataSource $dataSource): RedirectResponse
+    public function destroy(Request $request, DataSource $dataSource): RedirectResponse
     {
         $dataSource->delete();
 

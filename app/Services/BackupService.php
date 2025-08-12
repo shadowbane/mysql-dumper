@@ -186,9 +186,12 @@ class BackupService implements BackupServiceInterface
         try {
             $dsn = "mysql:host={$connection->host};port={$connection->port};dbname={$connection->database}";
 
+            // Check if this table should be structure-only
+            $isStructureOnly = in_array($table, $connection->structureOnly);
+
             $dumpSettings = [
                 'compress' => CompressManagerFactory::NONE,
-                'no-data' => false,
+                'no-data' => $isStructureOnly, // Skip data if table is in structureOnly array
                 'add-drop-table' => true,
                 'single-transaction' => true,
                 'lock-tables' => false,
@@ -217,6 +220,7 @@ class BackupService implements BackupServiceInterface
                 throw BackupException::backupFailed($connection->database, null, [
                     'reason' => "Table '{$table}' dump file was not created or is empty",
                     'table' => $table,
+                    'structure_only' => $isStructureOnly,
                 ]);
             }
 
@@ -227,6 +231,7 @@ class BackupService implements BackupServiceInterface
                 'reason' => "Failed to backup table '{$table}': ".$e->getMessage(),
                 'table' => $table,
                 'operation' => 'backup_table',
+                'structure_only' => $isStructureOnly ?? false,
             ]);
         }
     }

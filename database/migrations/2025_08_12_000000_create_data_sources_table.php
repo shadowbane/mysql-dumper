@@ -21,6 +21,7 @@ return new class extends Migration
             $table->text('password');
             $table->boolean('is_active')->default(true);
             $table->json('skipped_tables')->nullable();
+            $table->json('structure_only')->nullable();
             $table->timestamps();
         });
     }
