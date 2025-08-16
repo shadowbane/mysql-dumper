@@ -25,6 +25,8 @@ import {
     DataSourceFormData,
     DataSourceEditFormData
 } from '@/schemas/dataSourceSchema';
+import { route } from 'ziggy-js';
+import axios from 'axios';
 
 interface DataSourceFormProps {
     dataSource?: DataSource;
@@ -84,18 +86,9 @@ export default function DataSourceForm({ dataSource, onSubmit, isEditing = false
                 password: formData.password,
             };
 
-            const response = await fetch('/data-sources/test-connection', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                body: JSON.stringify(testData),
-            });
+            const response = await axios.post(route('data-sources.test-connection'), testData);
 
-            const result = await response.json();
-
-            if (result.success) {
+            if (response.data.success) {
                 setConnectionStatus('success');
                 toast.success('Connection successful', {
                     description: 'Successfully connected to the database.',
@@ -103,13 +96,13 @@ export default function DataSourceForm({ dataSource, onSubmit, isEditing = false
             } else {
                 setConnectionStatus('error');
                 toast.error('Connection failed', {
-                    description: result.message || 'Failed to connect to the database.',
+                    description: response.data.message || 'Failed to connect to the database.',
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             setConnectionStatus('error');
             toast.error('Connection error', {
-                description: 'An error occurred while testing the connection.',
+                description: error.response?.data?.message || 'An error occurred while testing the connection.',
             });
         } finally {
             setIsTestingConnection(false);

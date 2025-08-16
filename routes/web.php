@@ -30,7 +30,7 @@ Route::middleware('auth')->group(function () {
     Route::post('data-sources/{data_source}/test-connection', [\App\Http\Controllers\DataSourceController::class, 'testConnection'])
         ->name('data-sources.test');
     Route::post('data-sources/test-connection', [\App\Http\Controllers\DataSourceController::class, 'testConnectionData'])
-        ->name('data-sources.test-data');
+        ->name('data-sources.test-connection');
     // Schedules
     Route::get('schedules', fn() => response()->json(['message' => 'Under Construction']))
         ->name('schedules');

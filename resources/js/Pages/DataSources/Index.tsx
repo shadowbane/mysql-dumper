@@ -7,6 +7,7 @@ import {DataSource} from '@/types/datasource';
 import {Plug2, Download} from 'lucide-react';
 import {toast} from 'sonner';
 import MainLayout from '@/layouts/Main';
+import axios from 'axios';
 
 interface Props {
     dataSources: PaginatedResponse<DataSource>;
@@ -17,56 +18,42 @@ export default function DataSourcesIndex({dataSources}: Props) {
 
     const testConnection = async (dataSource: DataSource) => {
         try {
-            const response = await fetch(`/data-sources/${dataSource.id}/test-connection`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-            });
+            const response = await axios.post(route('data-sources.test', {
+                data_source: dataSource.id,
+            }));
 
-            const result = await response.json();
-
-            if (result.success) {
+            if (response.data.success) {
                 toast.success("Connection successful", {
                     description: "Successfully connected to the database.",
                 });
             } else {
                 toast.error("Connection failed", {
-                    description: result.message || "Failed to connect to the database.",
+                    description: response.data.message || "Failed to connect to the database.",
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             toast.error("Connection error", {
-                description: "An error occurred while testing the connection.",
+                description: error.response?.data?.message || "An error occurred while testing the connection.",
             });
         }
     };
 
     const triggerBackup = async (dataSource: DataSource) => {
         try {
-            const response = await fetch(`/data-sources/${dataSource.id}/backup`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-            });
+            const response = await axios.post(`/data-sources/${dataSource.id}/backup`);
 
-            const result = await response.json();
-
-            if (result.success) {
+            if (response.data.success) {
                 toast.success("Backup started", {
                     description: "Backup process has been initiated successfully.",
                 });
             } else {
                 toast.error("Backup failed", {
-                    description: result.message || "Failed to start backup process.",
+                    description: response.data.message || "Failed to start backup process.",
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             toast.error("Backup error", {
-                description: "An error occurred while starting the backup.",
+                description: error.response?.data?.message || "An error occurred while starting the backup.",
             });
         }
     };
@@ -219,6 +206,17 @@ export default function DataSourcesIndex({dataSources}: Props) {
                                 options: [
                                     {label: "Active", value: "1"},
                                     {label: "Inactive", value: "0"},
+                                ]
+                            },
+                            {
+                                type: 'select',
+                                identifier: 'backup_status',
+                                label: 'Backup Status',
+                                options: [
+                                    {label: "Healthy", value: "healthy"},
+                                    {label: "Stale", value: "stale"},
+                                    {label: "Failed", value: "failed"},
+                                    {label: "No Backup", value: "none"},
                                 ]
                             },
                         ]}
