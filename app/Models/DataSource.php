@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Traits\HasUlid32;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class DataSource extends Model
 {
@@ -40,23 +41,35 @@ class DataSource extends Model
         ];
     }
 
+    /**
+     * @return HasMany
+     */
     public function backupLogs(): HasMany
     {
         return $this->hasMany(BackupLog::class);
     }
 
-    public function latestBackupLog(): ?BackupLog
+    /**
+     * @return HasOne
+     */
+    public function latestBackupLog(): HasOne
     {
-        return $this->backupLogs()->latest('completed_at')->first();
+        return $this->hasOne(BackupLog::class)->latest()->limit(1);
     }
 
+    /**
+     * @return bool
+     */
     public function hasHealthyBackup(): bool
     {
-        $latestLog = $this->latestBackupLog();
+        $latestLog = $this->latestBackupLog;
 
         return $latestLog && $latestLog->isHealthy();
     }
 
+    /**
+     * @return bool
+     */
     public function isBackupHealthy(): bool
     {
         return $this->backupLogs()

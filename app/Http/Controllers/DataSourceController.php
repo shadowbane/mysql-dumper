@@ -26,8 +26,15 @@ class DataSourceController extends Controller
      */
     public function index(Request $request): Response
     {
+        $ds = DataSource::with('latestBackupLog')
+            ->get();
+
+        $ds->map(function (DataSource $i) {
+            $i->isBackupHealthy = $i->isBackupHealthy();
+        });
+
         return Inertia::render('DataSources/Index', [
-            'dataSources' => DataSource::latest()->paginate(),
+            'dataSources' => $ds->paginate(),
         ]);
     }
 

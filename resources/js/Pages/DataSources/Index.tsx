@@ -4,7 +4,7 @@ import {route} from 'ziggy-js';
 import {Head} from '@inertiajs/react';
 import {PaginatedResponse} from '@/types/paginated-response';
 import {DataSource} from '@/types/datasource';
-import {Plug2} from 'lucide-react';
+import {Plug2, Download} from 'lucide-react';
 import {toast} from 'sonner';
 import MainLayout from '@/layouts/Main';
 
@@ -13,6 +13,7 @@ interface Props {
 }
 
 export default function DataSourcesIndex({dataSources}: Props) {
+    console.log(dataSources);
 
     const testConnection = async (dataSource: DataSource) => {
         try {
@@ -42,6 +43,34 @@ export default function DataSourcesIndex({dataSources}: Props) {
         }
     };
 
+    const triggerBackup = async (dataSource: DataSource) => {
+        try {
+            const response = await fetch(`/data-sources/${dataSource.id}/backup`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                toast.success("Backup started", {
+                    description: "Backup process has been initiated successfully.",
+                });
+            } else {
+                toast.error("Backup failed", {
+                    description: result.message || "Failed to start backup process.",
+                });
+            }
+        } catch (error) {
+            toast.error("Backup error", {
+                description: "An error occurred while starting the backup.",
+            });
+        }
+    };
+
     const tableActions = () => {
         return {
             create: {
@@ -66,6 +95,16 @@ export default function DataSourcesIndex({dataSources}: Props) {
                     action: (row: DataSource) => testConnection(row),
                     icon: <Plug2 className="h-4 w-4"/>,
                     placement: 'inline' as const,
+                    order: 'beginning',
+                },
+                {
+                    type: 'command' as const,
+                    label: 'Backup Now',
+                    action: (row: DataSource) => triggerBackup(row),
+                    icon: <Download className="h-4 w-4"/>,
+                    placement: 'inline' as const,
+                    disabled: (row: DataSource) => row.latest_backup_log?.status === 'Running',
+                    order: 'beginning',
                 },
             ],
         };
@@ -75,24 +114,58 @@ export default function DataSourcesIndex({dataSources}: Props) {
         return isActive ? 'default' : 'secondary';
     };
 
-    const renderSkippedTables = (skippedTables: string | string[] | null) => {
-        if (!skippedTables || (Array.isArray(skippedTables) && skippedTables.length === 0)) {
-            return 'None';
-        }
-
-        const tables = typeof skippedTables === 'string'
-            ? skippedTables.split(',').map(t => t.trim())
-            : skippedTables;
-
-        if (tables.length <= 2) {
-            return tables.join(', ');
-        }
-
-        return `${tables.slice(0, 2).join(', ')} +${tables.length - 2} more`;
-    };
 
     const renderConnection = (_value: string, row: DataSource) => {
         return `${row.host}:${row.port} (${row.database})`;
+    };
+
+    const renderBackupStatus = (_value: any, row: DataSource) => {
+        const latestBackup = row.latest_backup_log;
+        const isHealthy = row.is_backup_healthy;
+
+        if (!latestBackup) {
+            return 'No Backup';
+        }
+
+        const formatDate = (dateString: string | null) => {
+            if (!dateString) return 'Never';
+            return new Date(dateString).toLocaleDateString();
+        };
+
+        switch (latestBackup.status) {
+            case 'Completed':
+                return `${isHealthy ? 'Healthy' : 'Stale'} - ${formatDate(latestBackup.completed_at)}`;
+            case 'Running':
+                return 'Running...';
+            case 'Failed':
+                return `Failed - ${formatDate(latestBackup.completed_at)}`;
+            case 'Pending':
+                return 'Pending';
+            default:
+                return 'Unknown';
+        }
+    };
+
+    const getBackupBadgeVariant = (row: DataSource) => {
+        const latestBackup = row.latest_backup_log;
+        const isHealthy = row.is_backup_healthy;
+
+        if (!latestBackup) {
+            return 'secondary';
+        }
+
+        switch (latestBackup.status) {
+            case 'Completed':
+                return isHealthy ? 'default' : 'secondary';
+            case 'Running':
+                return 'outline';
+            case 'Failed':
+                return 'destructive';
+            case 'Pending':
+                return 'secondary';
+            default:
+                return 'secondary';
+        }
     };
 
 
@@ -121,12 +194,6 @@ export default function DataSourcesIndex({dataSources}: Props) {
                                 transform: renderConnection,
                             },
                             {
-                                label: "Username",
-                                name: "username",
-                                type: "text",
-                                className: "font-mono text-sm",
-                            },
-                            {
                                 label: "Status",
                                 name: "is_active",
                                 type: "badge",
@@ -134,17 +201,13 @@ export default function DataSourcesIndex({dataSources}: Props) {
                                 transform: (value: boolean) => value ? "Active" : "Inactive",
                                 transformVariant: (value: boolean) => getStatusVariant(value),
                             },
-                            // {
-                            //     label: "Skipped Tables",
-                            //     name: "skipped_tables",
-                            //     type: "text",
-                            //     transform: (value: string | string[] | null) => renderSkippedTables(value),
-                            // },
                             {
-                                label: "Created",
-                                name: "created_at",
-                                type: "date",
-                                sortable: true,
+                                label: "Backup Status",
+                                name: "latest_backup_log",
+                                type: "badge",
+                                transform: renderBackupStatus,
+                                transformVariant: (_value: any, row: DataSource) => getBackupBadgeVariant(row),
+                                className: "min-w-[200px]",
                             },
                         ])}
                         actions={tableActions()}
