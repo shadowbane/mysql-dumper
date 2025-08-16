@@ -27,7 +27,10 @@ Route::middleware('auth')->group(function () {
 
     // Data Sources
     Route::prefix('data-sources')->name('data-sources.')->group(function () {
-        Route::resource('/', \App\Http\Controllers\DataSourceController::class);
+        Route::resource('/', \App\Http\Controllers\DataSourceController::class)
+            ->parameters([
+                '' => 'data_source',
+            ]);
 
         // Trigger backup for single source
         Route::post('{data_source}/backup', [\App\Http\Controllers\DataSourceController::class, 'backupSingleDB'])

@@ -92,7 +92,7 @@ export default function DataSourcesIndex({dataSources}: Props) {
                     action: (row: DataSource) => triggerBackup(row),
                     icon: <Download className="h-4 w-4"/>,
                     placement: 'inline' as const,
-                    disabled: (row: DataSource) => row.latest_backup_log?.status === 'Running',
+                    disabled: (row: DataSource) => ["Pending", "Running"].includes(row.latest_backup_log?.status), //row.latest_backup_log?.status === 'Running',
                     order: 'beginning',
                 },
             ],
@@ -118,7 +118,17 @@ export default function DataSourcesIndex({dataSources}: Props) {
 
         const formatDate = (dateString: string | null) => {
             if (!dateString) return 'Never';
-            return new Date(dateString).toLocaleDateString();
+            const date = new Date(dateString);
+
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = date.toLocaleString('default', {month: 'short'});
+            const year = date.getFullYear();
+
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+
+            return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
         };
 
         switch (latestBackup.status) {

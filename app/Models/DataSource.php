@@ -72,9 +72,6 @@ class DataSource extends Model
      */
     public function isBackupHealthy(): bool
     {
-        return $this->backupLogs()
-            ->where('status', 'completed')
-            ->where('completed_at', '>=', now()->subHours(24))
-            ->exists();
+        return $this->hasHealthyBackup();
     }
 }
