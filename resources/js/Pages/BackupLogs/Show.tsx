@@ -18,6 +18,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {useState} from 'react';
+import { format } from 'date-fns';
 
 interface Props {
     backupLog: BackupLog;
@@ -128,7 +129,7 @@ export default function BackupLogShow({backupLog}: Props) {
                             <div>
                                 <h1 className="text-2xl font-bold">Backup Details</h1>
                                 <p className="text-muted-foreground">
-                                    {backupLog.data_source?.name} - {formatDate(backupLog.created_at)}
+                                    {backupLog.data_source?.name} - {format(backupLog.created_at, 'd MMMM Y')}, {formatShortDate(backupLog.created_at)}
                                 </p>
                             </div>
                         </div>
@@ -139,8 +140,8 @@ export default function BackupLogShow({backupLog}: Props) {
                                         <Download className="h-4 w-4 mr-2"/>
                                         Download
                                     </Button>
-                                    <Button 
-                                        variant="destructive" 
+                                    <Button
+                                        variant="destructive"
                                         onClick={openDeleteDialog}
                                     >
                                         <Trash2 className="h-4 w-4 mr-2"/>
@@ -236,7 +237,7 @@ export default function BackupLogShow({backupLog}: Props) {
                                                                 {timeline.status}
                                                             </Badge>
                                                             <span className="text-sm text-muted-foreground">
-                                                                {formatShortDate(timeline.created_at)}
+                                                                {format(timeline.created_at, 'd MMMM Y')}, {formatShortDate(timeline.created_at)}
                                                             </span>
                                                             {timeline.human_duration_from_previous && (
                                                                 <span className="text-xs text-muted-foreground">
@@ -244,11 +245,11 @@ export default function BackupLogShow({backupLog}: Props) {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        {timeline.metadata && Object.keys(timeline.metadata).length > 0 && (
-                                                            <div className="text-xs text-muted-foreground mt-1">
-                                                                {JSON.stringify(timeline.metadata, null, 2)}
-                                                            </div>
-                                                        )}
+                                                        {/*{timeline.metadata && Object.keys(timeline.metadata).length > 0 && (*/}
+                                                        {/*    <div className="text-xs text-muted-foreground mt-1">*/}
+                                                        {/*        {JSON.stringify(timeline.metadata, null, 2)}*/}
+                                                        {/*    </div>*/}
+                                                        {/*)}*/}
                                                     </div>
                                                 </div>
                                             ))}

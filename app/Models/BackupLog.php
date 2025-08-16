@@ -240,7 +240,11 @@ class BackupLog extends Model
             return null;
         }
 
-        return $this->completed_at->diffInSeconds($this->started_at);
+        $completeTime = $this->timelines
+            ->where('status', BackupStatusEnum::completed)
+            ->first();
+
+        return $this->created_at->diffInSeconds($completeTime->created_at, true);
     }
 
     /**
