@@ -1,11 +1,15 @@
 <?php
 
-use Inertia\Inertia;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Index');
+    if (auth()->guest()) {
+        return redirect()->route('login');
+    }
+
+    return redirect()->route('dashboard');
 });
 
 Route::middleware('guest')->group(function () {
@@ -28,9 +32,9 @@ Route::middleware('auth')->group(function () {
     Route::post('data-sources/test-connection', [\App\Http\Controllers\DataSourceController::class, 'testConnectionData'])
         ->name('data-sources.test-data');
     // Schedules
-    Route::get('schedules', fn () => response()->json(['message' => 'Under Construction']))
+    Route::get('schedules', fn() => response()->json(['message' => 'Under Construction']))
         ->name('schedules');
     // Backup Logs
-    Route::get('logs', fn () => response()->json(['message' => 'Under Construction']))
+    Route::get('logs', fn() => response()->json(['message' => 'Under Construction']))
         ->name('logs');
 });

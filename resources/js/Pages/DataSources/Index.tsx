@@ -134,12 +134,12 @@ export default function DataSourcesIndex({dataSources}: Props) {
                                 transform: (value: boolean) => value ? "Active" : "Inactive",
                                 transformVariant: (value: boolean) => getStatusVariant(value),
                             },
-                            {
-                                label: "Skipped Tables",
-                                name: "skipped_tables",
-                                type: "text",
-                                transform: (value: string | string[] | null) => renderSkippedTables(value),
-                            },
+                            // {
+                            //     label: "Skipped Tables",
+                            //     name: "skipped_tables",
+                            //     type: "text",
+                            //     transform: (value: string | string[] | null) => renderSkippedTables(value),
+                            // },
                             {
                                 label: "Created",
                                 name: "created_at",
