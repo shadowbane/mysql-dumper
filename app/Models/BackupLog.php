@@ -7,6 +7,7 @@ use App\Enums\BackupTypeEnum;
 use App\Models\Traits\HasUlid32;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Throwable;
 
 class BackupLog extends Model
 {
@@ -85,14 +86,29 @@ class BackupLog extends Model
     }
 
     /**
-     * @param  string  $errorMessage
+     * @param  Throwable  $exception
      * @return void
      */
-    public function markAsFailed(string $errorMessage): void
+    public function markAsFailed(Throwable $exception): void
     {
+        $errors = $this->errors ?? [];
+
+        $errorDetails = [
+            'message' => $exception->getMessage(),
+            'code' => $exception->getCode(),
+            'file' => $exception->getFile(),
+            'line' => $exception->getLine(),
+        ];
+
+        if ($exception instanceof \App\Exceptions\BackupException) {
+            $errorDetails['context'] = $exception->getContext();
+        }
+
+        $errors[] = $errorDetails;
+
         $this->update([
             'status' => BackupStatusEnum::failed,
-            'error_message' => $errorMessage,
+            'errors' => $errors,
             'completed_at' => now(),
         ]);
     }

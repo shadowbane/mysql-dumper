@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Contracts\BackupServiceInterface;
 use App\DTO\ConnectionDTO;
 use App\Exceptions\BackupException;
+use App\Models\BackupLog;
 use Druidfi\Mysqldump as IMysqldump;
 use Druidfi\Mysqldump\Compress\CompressManagerFactory;
+use Exception;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +19,60 @@ class BackupService implements BackupServiceInterface
 {
     private string $disk = 'local';
     private string $path = 'database-backups';
+
+    /**
+     * @throws Exception
+     */
+    public function runBackupProcess(BackupLog $backupLog): void
+    {
+        try {
+            // Mark backup as running
+            $backupLog->markAsRunning();
+
+            $dataSource = $backupLog->dataSource;
+
+            // Create connection DTO
+            $connectionDTO = new ConnectionDTO(
+                host: $dataSource->host,
+                port: $dataSource->port,
+                database: $dataSource->database,
+                username: $dataSource->username,
+                password: $dataSource->password,
+                skippedTables: $dataSource->skipped_tables ? preg_split('/\s*,\s*/', $dataSource->skipped_tables) : [],
+                structureOnly: $dataSource->structure_only ? preg_split('/\s*,\s*/', $dataSource->structure_only) : []
+            );
+
+            // Set backup service disk and path
+            $this->setDisk($backupLog->disk);
+
+            // Perform backup
+            $filePath = $this->backup($connectionDTO);
+
+            // Get file info for backup log
+            $filename = basename($filePath);
+            $fileSize = Storage::disk($backupLog->disk)->size($filePath);
+
+            // Mark backup as completed
+            $backupLog->markAsCompleted(
+                filename: $filename,
+                filePath: $filePath,
+                fileSize: $fileSize,
+                metadata: [
+                    'database' => $dataSource->database,
+                    'tables_backed_up' => count($connectionDTO->skippedTables ? array_diff($this->getTables($connectionDTO), $connectionDTO->skippedTables) : $this->getTables($connectionDTO)),
+                    'structure_only_tables' => $connectionDTO->structureOnly,
+                    'skipped_tables' => $connectionDTO->skippedTables,
+                ]
+            );
+
+        } catch (Exception $e) {
+            // Mark backup as failed
+            $backupLog->markAsFailed($e);
+
+            // Re-throw to trigger job failure handling
+            throw $e;
+        }
+    }
 
     public function backup(ConnectionDTO $connection, ?string $filename = null): string
     {
@@ -66,7 +122,7 @@ class BackupService implements BackupServiceInterface
 
             return $finalPath;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             if ($e instanceof BackupException) {
                 throw $e;
             }
@@ -91,7 +147,7 @@ class BackupService implements BackupServiceInterface
 
             return true;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             throw BackupException::connectionFailed($connection->host, $connection->port, $e);
         }
     }
@@ -104,7 +160,7 @@ class BackupService implements BackupServiceInterface
             $configName = 'temp_connection_'.uniqid();
             Config::set("database.connections.{$configName}", $connection->getDatabaseConfig());
 
-            $result = DB::connection($configName)->select('
+            $result = DB::connection($configName)->select(' 
                 SELECT
                     ROUND(SUM(data_length + index_length)) as size_bytes
                 FROM information_schema.tables
@@ -115,7 +171,7 @@ class BackupService implements BackupServiceInterface
 
             return (int) ($result[0]->size_bytes ?? 0);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             throw BackupException::backupFailed($connection->database, $e, [
                 'operation' => 'get_database_size',
                 'reason' => $e->getMessage(),
@@ -131,7 +187,7 @@ class BackupService implements BackupServiceInterface
             $configName = 'temp_connection_'.uniqid();
             Config::set("database.connections.{$configName}", $connection->getDatabaseConfig());
 
-            $result = DB::connection($configName)->select('
+            $result = DB::connection($configName)->select(' 
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = ?
@@ -142,7 +198,7 @@ class BackupService implements BackupServiceInterface
 
             return array_map(fn($table) => $table->TABLE_NAME, $result);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             throw BackupException::backupFailed($connection->database, $e, [
                 'operation' => 'get_tables',
                 'reason' => $e->getMessage(),
@@ -226,7 +282,7 @@ class BackupService implements BackupServiceInterface
 
             return $filePath;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             throw BackupException::backupFailed($connection->database, $e, [
                 'reason' => "Failed to backup table '{$table}': ".$e->getMessage(),
                 'table' => $table,
@@ -266,7 +322,7 @@ class BackupService implements BackupServiceInterface
 
             return $filePath;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Structure backup failure is not critical, log but continue
             logger()->warning('Failed to backup database structure', [
                 'database' => $connection->database,
