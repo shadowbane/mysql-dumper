@@ -7,11 +7,26 @@ use App\Enums\BackupTypeEnum;
 use App\Models\Traits\HasUlid32;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Throwable;
 
 class BackupLog extends Model
 {
     use HasUlid32;
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::created(function ($backupLog) {
+            // Create initial timeline entry when backup log is created
+            $backupLog->recordStatusChange($backupLog->status, [
+                'created_at' => $backupLog->created_at->toISOString(),
+                'type' => $backupLog->type->value,
+                'data_source_id' => $backupLog->data_source_id,
+            ]);
+        });
+    }
 
     protected $fillable = [
         'data_source_id',
@@ -56,6 +71,25 @@ class BackupLog extends Model
     }
 
     /**
+     * @return HasMany
+     */
+    public function timelines(): HasMany
+    {
+        return $this->hasMany(BackupLogTimeline::class)->orderBy('created_at');
+    }
+
+    /**
+     * Create timeline entry for status change.
+     */
+    public function recordStatusChange(BackupStatusEnum $status, array $metadata = []): void
+    {
+        $this->timelines()->create([
+            'status' => $status,
+            'metadata' => $metadata,
+        ]);
+    }
+
+    /**
      * @return void
      */
     public function markAsRunning(): void
@@ -63,6 +97,10 @@ class BackupLog extends Model
         $this->update([
             'status' => BackupStatusEnum::running,
             'started_at' => now(),
+        ]);
+
+        $this->recordStatusChange(BackupStatusEnum::running, [
+            'started_at' => now()->toISOString(),
         ]);
     }
 
@@ -82,6 +120,14 @@ class BackupLog extends Model
             'file_size' => $fileSize,
             'metadata' => $metadata,
             'completed_at' => now(),
+        ]);
+
+        $this->recordStatusChange(BackupStatusEnum::completed, [
+            'completed_at' => now()->toISOString(),
+            'filename' => $filename,
+            'file_path' => $filePath,
+            'file_size' => $fileSize,
+            'backup_metadata' => $metadata,
         ]);
     }
 
@@ -121,6 +167,14 @@ class BackupLog extends Model
             'status' => BackupStatusEnum::failed,
             'errors' => $errors,
             'completed_at' => now(),
+        ]);
+
+        $this->recordStatusChange(BackupStatusEnum::failed, [
+            'failed_at' => now()->toISOString(),
+            'error_message' => $exception->getMessage(),
+            'error_code' => $exception->getCode(),
+            'error_file' => $exception->getFile(),
+            'error_line' => $exception->getLine(),
         ]);
     }
 
