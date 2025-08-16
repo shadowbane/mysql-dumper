@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\BackupLog;
 use App\Models\DataSource;
 use Exception;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -146,37 +148,55 @@ class BackupLogController extends Controller
      *
      * @param  Request  $request
      * @param  BackupLog  $backupLog
-     * @return JsonResponse
+     * @return RedirectResponse
      */
-    public function deleteFile(Request $request, BackupLog $backupLog): JsonResponse
+    public function deleteFile(Request $request, BackupLog $backupLog): RedirectResponse
     {
         try {
-            if (! $backupLog->isFileAvailable()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Backup file not found or already deleted.',
-                ], 404);
-            }
+            $lockName = "backup-log-delete-file-lock-{$backupLog->id}";
 
-            // Delete file from storage
-            $disk = Storage::disk($backupLog->disk);
-            if ($disk->exists($backupLog->file_path)) {
-                $disk->delete($backupLog->file_path);
-            }
+            return $this->executeStoreWithLock($lockName, function () use ($backupLog) {
+                try {
+                    DB::beginTransaction();
 
-            // Mark file as deleted in database
-            $backupLog->markFileAsDeleted();
+                    if (! $backupLog->isFileAvailable()) {
+                        DB::rollBack();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Backup file deleted successfully. Log entry preserved.',
+                        return back()->withErrors(['message' => 'Backup file not found or already deleted.']);
+                    }
+
+                    // Delete file from storage
+                    $disk = Storage::disk($backupLog->disk);
+                    if ($disk->exists($backupLog->file_path)) {
+                        $disk->delete($backupLog->file_path);
+                    }
+
+                    // Mark file as deleted in database
+                    $backupLog->markFileAsDeleted();
+
+                    DB::commit();
+
+                    return back()->with('success', 'Backup file deleted successfully. Log entry preserved.');
+
+                } catch (Exception $e) {
+                    DB::rollBack();
+                    throw $e;
+                }
+            });
+        } catch (LockTimeoutException $e) {
+            logger()->error("Failed acquire lock when deleting backup file: {$e->getMessage()}", [
+                'exception' => $e,
+                'backup_log_id' => $backupLog->id,
             ]);
 
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete backup file: '.$e->getMessage(),
-            ], 500);
+            return back()->withErrors(['message' => 'Failed to acquire lock. Please try again later.']);
+        } catch (\Throwable $e) {
+            logger()->error("Failed to delete backup file for log ID {$backupLog->id}: {$e->getMessage()}", [
+                'exception' => $e,
+                'backup_log_id' => $backupLog->id,
+            ]);
+
+            return back()->withErrors(['message' => 'Failed to delete backup file: '.$e->getMessage()]);
         }
     }
 }

@@ -7,12 +7,26 @@ import {Badge} from '@/components/ui/badge';
 import {toast} from 'sonner';
 import MainLayout from '@/layouts/Main';
 import {route} from 'ziggy-js';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {useState} from 'react';
 
 interface Props {
     backupLog: BackupLog;
 }
 
 export default function BackupLogShow({backupLog}: Props) {
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const downloadBackup = async () => {
         try {
             window.open(route('backup-logs.download', {backup_log: backupLog.id}), '_blank');
@@ -23,11 +37,17 @@ export default function BackupLogShow({backupLog}: Props) {
         }
     };
 
-    const deleteBackupFile = async () => {
-        if (!confirm('Are you sure you want to delete this backup file? The log entry will be preserved but the file will be permanently deleted.')) {
-            return;
-        }
+    const openDeleteDialog = () => {
+        setDeleteDialogOpen(true);
+    };
 
+    const closeDeleteDialog = () => {
+        setDeleteDialogOpen(false);
+        setIsDeleting(false);
+    };
+
+    const confirmDeleteBackupFile = () => {
+        setIsDeleting(true);
         router.delete(route('backup-logs.delete-file', {backup_log: backupLog.id}), {
             preserveScroll: true,
             onError: (errors: any) => {
@@ -35,11 +55,13 @@ export default function BackupLogShow({backupLog}: Props) {
                 toast.error("Delete error", {
                     description: errorMessage,
                 });
+                closeDeleteDialog();
             },
             onSuccess: () => {
                 toast.success("File deleted", {
                     description: "Backup file deleted successfully. Log entry preserved.",
                 });
+                closeDeleteDialog();
                 // Navigate back to backup logs index
                 router.visit(route('backup-logs.index'));
             }
@@ -119,7 +141,7 @@ export default function BackupLogShow({backupLog}: Props) {
                                     </Button>
                                     <Button 
                                         variant="destructive" 
-                                        onClick={deleteBackupFile}
+                                        onClick={openDeleteDialog}
                                     >
                                         <Trash2 className="h-4 w-4 mr-2"/>
                                         Delete File
@@ -321,6 +343,31 @@ export default function BackupLogShow({backupLog}: Props) {
                     </div>
                 </div>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Backup File</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete this backup file? The log entry will be preserved but the file will be permanently deleted.
+                            {'\n\n'}Data Source: {backupLog.data_source?.name}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={closeDeleteDialog} disabled={isDeleting}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmDeleteBackupFile}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete File'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </MainLayout>
     );
 }
