@@ -26,11 +26,22 @@ Route::middleware('auth')->group(function () {
         ->name('logout');
 
     // Data Sources
-    Route::resource('data-sources', \App\Http\Controllers\DataSourceController::class);
-    Route::post('data-sources/{data_source}/test-connection', [\App\Http\Controllers\DataSourceController::class, 'testConnection'])
-        ->name('data-sources.test');
-    Route::post('data-sources/test-connection', [\App\Http\Controllers\DataSourceController::class, 'testConnectionData'])
-        ->name('data-sources.test-connection');
+    Route::prefix('data-sources')->name('data-sources.')->group(function () {
+        Route::resource('/', \App\Http\Controllers\DataSourceController::class);
+
+        // Trigger backup for single source
+        Route::post('{data_source}/backup', [\App\Http\Controllers\DataSourceController::class, 'backupSingleDB'])
+            ->name('single-backup');
+
+        // Test connection after data is saved
+        Route::post('{data_source}/test-connection', [\App\Http\Controllers\DataSourceController::class, 'testConnection'])
+            ->name('test');
+
+        // Test connection before data is saved
+        Route::post('test-connection', [\App\Http\Controllers\DataSourceController::class, 'testConnectionData'])
+            ->name('test-connection');
+    });
+
     // Schedules
     Route::get('schedules', fn() => response()->json(['message' => 'Under Construction']))
         ->name('schedules');

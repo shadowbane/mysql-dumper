@@ -40,7 +40,9 @@ export default function DataSourcesIndex({dataSources}: Props) {
 
     const triggerBackup = async (dataSource: DataSource) => {
         try {
-            const response = await axios.post(`/data-sources/${dataSource.id}/backup`);
+            const response = await axios.post(route('data-sources.single-backup', {
+                data_source: dataSource.id,
+            }));
 
             if (response.data.success) {
                 toast.success("Backup started", {

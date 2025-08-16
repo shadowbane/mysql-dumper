@@ -106,4 +106,19 @@ class BackupLog extends Model
                $this->completed_at &&
                $this->completed_at->isAfter(now()->subHours(24));
     }
+
+    /**
+     * Get human-readable file size.
+     */
+    public function getHumanSizeAttribute(): string
+    {
+        $bytes = $this->file_size;
+        $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+
+        for ($i = 0; $bytes > 1024; $i++) {
+            $bytes /= 1024;
+        }
+
+        return round($bytes, 2).' '.$units[$i];
+    }
 }

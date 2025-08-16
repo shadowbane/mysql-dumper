@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Contracts\BackupServiceInterface;
 use App\DTO\ConnectionDTO;
 use App\Enums\BackupStatusEnum;
+use App\Events\BackupRequested;
 use App\Http\Requests\StoreDataSourceRequest;
 use App\Http\Requests\UpdateDataSourceRequest;
 use App\Models\DataSource;
@@ -247,6 +248,43 @@ class DataSourceController extends Controller
             return response()->json(['success' => false, 'message' => 'Connection failed.'], 400);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Trigger backup for a single data source.
+     *
+     * @param  DataSource  $dataSource
+     * @return JsonResponse
+     */
+    public function backupSingleDB(DataSource $dataSource): JsonResponse
+    {
+        try {
+            // Check if there's already a running backup for this data source
+            $runningBackup = $dataSource->backupLogs()
+                ->where('status', BackupStatusEnum::running)
+                ->exists();
+
+            if ($runningBackup) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'A backup is already running for this data source.',
+                ], 409);
+            }
+
+            // Dispatch backup event
+            BackupRequested::dispatch($dataSource);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Backup process has been initiated successfully.',
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to initiate backup: '.$e->getMessage(),
+            ], 500);
         }
     }
 }

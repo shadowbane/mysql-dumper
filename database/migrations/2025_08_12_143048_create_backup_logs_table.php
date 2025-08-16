@@ -21,10 +21,13 @@ return new class extends Migration
             $table->char('type', 10)
                 ->comment("type of backup: 'manual', 'automated'");
             $table->string('disk')
+                ->nullable() // Nullable, as on first creation of backup, this will be null
                 ->comment('disk (filesystem) of the output');
             $table->string('filename')
+                ->nullable() // Nullable, as on first creation of backup, this will be null
                 ->comment('filename of the output');
             $table->text('file_path')
+                ->nullable() // Nullable, as on first creation of backup, this will be null
                 ->comment('path of the output');
             $table->unsignedBigInteger('file_size')->nullable();
             $table->json('warnings')->nullable();
