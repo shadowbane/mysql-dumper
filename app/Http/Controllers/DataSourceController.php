@@ -10,10 +10,12 @@ use App\Http\Requests\StoreDataSourceRequest;
 use App\Http\Requests\UpdateDataSourceRequest;
 use App\Models\DataSource;
 use Exception;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -108,8 +110,7 @@ class DataSourceController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 15);
-        $dataSources = $query->paginate($perPage);
+        $dataSources = $query->customPaginate();
 
         // Add backup health status to each data source
         $dataSources->getCollection()->transform(function (DataSource $dataSource) {
@@ -138,10 +139,42 @@ class DataSourceController extends Controller
      */
     public function store(StoreDataSourceRequest $request): RedirectResponse
     {
-        DataSource::create($request->validated());
 
-        return redirect()->route('data-sources.index')
-            ->with('success', 'Data source created successfully.');
+        try {
+            $lockName = 'datasource-create-lock';
+
+            return $this->executeStoreWithLock($lockName, function () use ($request) {
+                try {
+                    DB::beginTransaction();
+
+                    DataSource::create($request->validated());
+
+                    DB::commit();
+
+                    return redirect()->route('data-sources.index')
+                        ->with('success', 'Data source created successfully.');
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    throw $e;
+                }
+            });
+        } catch (LockTimeoutException $e) {
+            logger()->error("Failed acquire lock when creating Data Source: {$e->getMessage()}", [
+                'exception' => $e,
+            ]);
+
+            return redirect()
+                ->back()
+                ->withErrors('Failed to acquire lock. Please try again later.');
+        } catch (\Throwable $e) {
+            logger()->error("Failed to create Data Source: {$e->getMessage()}", [
+                'exception' => $e,
+            ]);
+
+            return redirect()
+                ->back()
+                ->withErrors($e->getMessage());
+        }
     }
 
     /**
@@ -163,15 +196,46 @@ class DataSourceController extends Controller
      */
     public function update(UpdateDataSourceRequest $request, DataSource $dataSource): RedirectResponse
     {
-        $validated = $request->validated();
-        if (empty($validated['password'])) {
-            unset($validated['password']);
+        try {
+            $lockName = "datasource-update-lock-{$dataSource->id}";
+
+            return $this->executeStoreWithLock($lockName, function () use ($request, $dataSource) {
+                try {
+                    DB::beginTransaction();
+
+                    $validated = $request->validated();
+                    if (empty($validated['password'])) {
+                        unset($validated['password']);
+                    }
+
+                    $dataSource->update($validated);
+
+                    DB::commit();
+
+                    return redirect()->route('data-sources.index')
+                        ->with('success', 'Data source updated successfully.');
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    throw $e;
+                }
+            });
+        } catch (LockTimeoutException $e) {
+            logger()->error("Failed acquire lock when updating Data Source: {$e->getMessage()}", [
+                'exception' => $e,
+            ]);
+
+            return redirect()
+                ->back()
+                ->withErrors('Failed to acquire lock. Please try again later.');
+        } catch (\Throwable $e) {
+            logger()->error("Failed to update Data Source with ID {$dataSource->id}: {$e->getMessage()}", [
+                'exception' => $e,
+            ]);
+
+            return redirect()
+                ->back()
+                ->withErrors($e->getMessage());
         }
-
-        $dataSource->update($validated);
-
-        return redirect()->route('data-sources.index')
-            ->with('success', 'Data source updated successfully.');
     }
 
     /**
@@ -181,10 +245,41 @@ class DataSourceController extends Controller
      */
     public function destroy(Request $request, DataSource $dataSource): RedirectResponse
     {
-        $dataSource->delete();
+        try {
+            $lockName = "datasource-destroy-lock-{$dataSource->id}";
 
-        return redirect()->route('data-sources.index')
-            ->with('success', 'Data source deleted successfully.');
+            return $this->executeStoreWithLock($lockName, function () use ($dataSource) {
+                try {
+                    DB::beginTransaction();
+
+                    $dataSource->delete();
+
+                    DB::commit();
+
+                    return redirect()->route('data-sources.index')
+                        ->with('success', 'Data source deleted successfully.');
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    throw $e;
+                }
+            });
+        } catch (LockTimeoutException $e) {
+            logger()->error("Failed acquire lock when deleting Data Source: {$e->getMessage()}", [
+                'exception' => $e,
+            ]);
+
+            return redirect()
+                ->back()
+                ->withErrors('Failed to acquire lock. Please try again later.');
+        } catch (\Throwable $e) {
+            logger()->error("Failed to delete Data Source with ID {$dataSource->id}: {$e->getMessage()}", [
+                'exception' => $e,
+            ]);
+
+            return redirect()
+                ->back()
+                ->withErrors($e->getMessage());
+        }
     }
 
     /**
