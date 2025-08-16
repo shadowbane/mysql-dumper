@@ -46,7 +46,7 @@ class BackupService implements BackupServiceInterface
             $this->setDisk($backupLog->disk);
 
             // Perform backup
-            $filePath = $this->backup($connectionDTO);
+            $filePath = $this->backup($connectionDTO, $backupLog);
 
             // Get file info for backup log
             $filename = basename($filePath);
@@ -74,7 +74,7 @@ class BackupService implements BackupServiceInterface
         }
     }
 
-    public function backup(ConnectionDTO $connection, ?string $filename = null): string
+    public function backup(ConnectionDTO $connection, BackupLog $backupLog, ?string $filename = null): string
     {
         $this->validateConnection($connection);
 
@@ -104,7 +104,7 @@ class BackupService implements BackupServiceInterface
             }
 
             // Create database structure dump (no data)
-            $structureFile = $this->backupDatabaseStructure($connection, $temporaryDirectory);
+            $structureFile = $this->backupDatabaseStructure($connection, $temporaryDirectory, $backupLog);
             if ($structureFile) {
                 $tableFiles[] = $structureFile;
             }
@@ -160,7 +160,7 @@ class BackupService implements BackupServiceInterface
             $configName = 'temp_connection_'.uniqid();
             Config::set("database.connections.{$configName}", $connection->getDatabaseConfig());
 
-            $result = DB::connection($configName)->select(' 
+            $result = DB::connection($configName)->select('
                 SELECT
                     ROUND(SUM(data_length + index_length)) as size_bytes
                 FROM information_schema.tables
@@ -187,7 +187,7 @@ class BackupService implements BackupServiceInterface
             $configName = 'temp_connection_'.uniqid();
             Config::set("database.connections.{$configName}", $connection->getDatabaseConfig());
 
-            $result = DB::connection($configName)->select(' 
+            $result = DB::connection($configName)->select('
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = ?
@@ -292,7 +292,7 @@ class BackupService implements BackupServiceInterface
         }
     }
 
-    private function backupDatabaseStructure(ConnectionDTO $connection, TemporaryDirectory $temporaryDirectory): ?string
+    private function backupDatabaseStructure(ConnectionDTO $connection, TemporaryDirectory $temporaryDirectory, BackupLog $backupLog): ?string
     {
         try {
             $dsn = "mysql:host={$connection->host};port={$connection->port};dbname={$connection->database}";
@@ -325,6 +325,12 @@ class BackupService implements BackupServiceInterface
         } catch (Exception $e) {
             // Structure backup failure is not critical, log but continue
             logger()->warning('Failed to backup database structure', [
+                'database' => $connection->database,
+                'error' => $e->getMessage(),
+            ]);
+
+            $backupLog->addWarning([
+                'message' => 'Failed to backup database structure',
                 'database' => $connection->database,
                 'error' => $e->getMessage(),
             ]);

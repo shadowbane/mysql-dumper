@@ -3,6 +3,7 @@
 namespace App\Contracts;
 
 use App\DTO\ConnectionDTO;
+use App\Models\BackupLog;
 
 interface BackupServiceInterface
 {
@@ -16,7 +17,7 @@ interface BackupServiceInterface
      *
      * @return string The path to the created backup file
      */
-    public function backup(ConnectionDTO $connection, ?string $filename = null): string;
+    public function backup(ConnectionDTO $connection, BackupLog $backupLog, ?string $filename = null): string;
 
     /**
      * Test the database connection before attempting backup.

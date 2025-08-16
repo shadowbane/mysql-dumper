@@ -86,6 +86,17 @@ class BackupLog extends Model
     }
 
     /**
+     * @param  string|array  $warning
+     * @return void
+     */
+    public function addWarning(string|array $warning): void
+    {
+        $warnings = $this->warnings ?? [];
+        $warnings[] = is_string($warning) ? ['message' => $warning] : $warning;
+        $this->update(['warnings' => $warnings]);
+    }
+
+    /**
      * @param  Throwable  $exception
      * @return void
      */

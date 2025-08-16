@@ -283,10 +283,11 @@ class DataSourceController extends Controller
     }
 
     /**
+     * @param  Request  $request
      * @param  DataSource  $dataSource
      * @return JsonResponse
      */
-    public function testConnection(DataSource $dataSource): JsonResponse
+    public function testConnection(Request $request, DataSource $dataSource): JsonResponse
     {
         try {
             $connectionDTO = new ConnectionDTO(
@@ -349,10 +350,11 @@ class DataSourceController extends Controller
     /**
      * Trigger backup for a single data source.
      *
+     * @param  Request  $request
      * @param  DataSource  $dataSource
      * @return JsonResponse
      */
-    public function backupSingleDB(DataSource $dataSource): JsonResponse
+    public function backupSingleDB(Request $request, DataSource $dataSource): JsonResponse
     {
         try {
             // Check if there's already a running backup for this data source
