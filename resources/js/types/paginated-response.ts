@@ -27,4 +27,6 @@ export interface PaginatedResponse<T> {
     first_page_url: string | null;
     /** Last page URL */
     last_page_url: string | null;
+    /** Optional page parameter name (for custom pagination) */
+    page_name?: string | null;
 }

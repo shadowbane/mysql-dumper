@@ -33,8 +33,8 @@ import {
 } from "@/components/ui/table";
 import {Input} from "@/components/ui/input";
 import {Button} from "@/components/ui/button";
-import {PaginationData} from "@/types/pagination";
-import {Pagination} from "@/components/ui/pagination";
+import {PaginatedResponse} from "@/types/paginated-response";
+import {Pagination} from "@/components/ui/data-table/pagination";
 import {FilterProps, FilterValue, DateRangeFilter, SelectFilter} from "./data-table/filters";
 import {
     DropdownMenu,
@@ -67,6 +67,8 @@ type ActionConfig = {
     icon?: React.ReactNode;
     placement?: 'top' | 'inline';
     order?: 'beginning' | 'end';
+    disabled?: boolean | ((row: any) => boolean);
+    shouldShow?: boolean;
 };
 
 interface TableActionsConfig<TData = any> {
@@ -76,6 +78,7 @@ interface TableActionsConfig<TData = any> {
         baseUrl: string;
         onClick?: (row: TData) => void;
         label?: string;
+        shouldShow?: (row: TData) => boolean;
     };
     edit?: {
         enabled: boolean | ((row: TData) => boolean);
@@ -162,7 +165,7 @@ interface SelectableConfig<TData> {
 interface DataTableProps<TData, TValue> {
     pageTitle: string;
     columns: ColumnDef<TData, TValue>[];
-    data: PaginationData;
+    data: PaginatedResponse<TData>;
     enableSearch?: boolean;
     filters?: FilterProps[];
     actions?: TableActionsConfig<TData>;
@@ -670,22 +673,30 @@ export function DataTable<TData extends Record<string, any>, TValue>({
                             <DropdownMenuContent align="end">
                                 {actions?.additionalActions
                                     ?.filter(action => action.placement !== 'top' && action.order === 'beginning')
-                                    .map((action, index) => (
-                                        <DropdownMenuItem
-                                            key={index}
-                                            onClick={() => {
-                                                if (action.type === 'route') {
-                                                    router.visit(action.action as string);
-                                                } else {
-                                                    (action.action as (row: any) => void)(row.original);
-                                                }
-                                            }}
-                                            className="hover:bg-accent hover:text-accent-foreground"
-                                        >
-                                            {action.icon && <span className="mr-2">{action.icon}</span>}
-                                            {action.label}
-                                        </DropdownMenuItem>
-                                    ))}
+                                    .map((action, index) => {
+                                        const isDisabled = typeof action.disabled === 'function'
+                                            ? action.disabled(row.original)
+                                            : action.disabled;
+
+                                        return (
+                                            <DropdownMenuItem
+                                                key={index}
+                                                onClick={() => {
+                                                    if (isDisabled) return;
+                                                    if (action.type === 'route') {
+                                                        router.visit(action.action as string);
+                                                    } else {
+                                                        (action.action as (row: any) => void)(row.original);
+                                                    }
+                                                }}
+                                                className={`hover:bg-accent hover:text-accent-foreground ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={isDisabled}
+                                            >
+                                                {action.icon && <span className="mr-2">{action.icon}</span>}
+                                                {action.label}
+                                            </DropdownMenuItem>
+                                        );
+                                    })}
 
                                 {(typeof actions?.preview?.enabled === 'function'
                                     ? actions.preview.enabled(row.original)
@@ -766,22 +777,30 @@ export function DataTable<TData extends Record<string, any>, TValue>({
 
                                 {actions?.additionalActions
                                     ?.filter(action => action.placement !== 'top' && action.order === 'end')
-                                    .map((action, index) => (
-                                        <DropdownMenuItem
-                                            key={index}
-                                            onClick={() => {
-                                                if (action.type === 'route') {
-                                                    router.visit(action.action as string);
-                                                } else {
-                                                    (action.action as (row: any) => void)(row.original);
-                                                }
-                                            }}
-                                            className="hover:bg-accent hover:text-accent-foreground"
-                                        >
-                                            {action.icon && <span className="mr-2">{action.icon}</span>}
-                                            {action.label}
-                                        </DropdownMenuItem>
-                                    ))}
+                                    .map((action, index) => {
+                                        const isDisabled = typeof action.disabled === 'function'
+                                            ? action.disabled(row.original)
+                                            : action.disabled;
+
+                                        return (
+                                            <DropdownMenuItem
+                                                key={index}
+                                                onClick={() => {
+                                                    if (isDisabled) return;
+                                                    if (action.type === 'route') {
+                                                        router.visit(action.action as string);
+                                                    } else {
+                                                        (action.action as (row: any) => void)(row.original);
+                                                    }
+                                                }}
+                                                className={`hover:bg-accent hover:text-accent-foreground ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={isDisabled}
+                                            >
+                                                {action.icon && <span className="mr-2">{action.icon}</span>}
+                                                {action.label}
+                                            </DropdownMenuItem>
+                                        );
+                                    })}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
@@ -1054,22 +1073,30 @@ export function DataTable<TData extends Record<string, any>, TValue>({
                                     {/* Beginning order top actions */}
                                     {topActions
                                         .filter(action => action.order === 'beginning')
-                                        .map((action, index) => (
-                                            <Button
-                                                key={`top-action-beginning-${index}`}
-                                                variant="default"
-                                                onClick={() => {
-                                                    if (action.type === 'route') {
-                                                        router.visit(action.action as string);
-                                                    } else {
-                                                        (action.action as () => void)();
-                                                    }
-                                                }}
-                                            >
-                                                {action.icon && <span className="mr-2">{action.icon}</span>}
-                                                {action.label}
-                                            </Button>
-                                        ))}
+                                        .map((action, index) => {
+                                            const isDisabled = typeof action.disabled === 'function'
+                                                ? action.disabled(null)
+                                                : action.disabled;
+
+                                            return (
+                                                <Button
+                                                    key={`top-action-beginning-${index}`}
+                                                    variant="default"
+                                                    disabled={isDisabled}
+                                                    onClick={() => {
+                                                        if (isDisabled) return;
+                                                        if (action.type === 'route') {
+                                                            router.visit(action.action as string);
+                                                        } else {
+                                                            (action.action as () => void)();
+                                                        }
+                                                    }}
+                                                >
+                                                    {action.icon && <span className="mr-2">{action.icon}</span>}
+                                                    {action.label}
+                                                </Button>
+                                            );
+                                        })}
 
                                     {/* Create button */}
                                     {hasCreateAction && (
@@ -1091,22 +1118,30 @@ export function DataTable<TData extends Record<string, any>, TValue>({
                                     {/* End order top actions */}
                                     {topActions
                                         .filter(action => action.order === 'end' || !action.order)
-                                        .map((action, index) => (
-                                            <Button
-                                                key={`top-action-end-${index}`}
-                                                variant="default"
-                                                onClick={() => {
-                                                    if (action.type === 'route') {
-                                                        router.visit(action.action as string);
-                                                    } else {
-                                                        (action.action as () => void)();
-                                                    }
-                                                }}
-                                            >
-                                                {action.icon && <span className="mr-2">{action.icon}</span>}
-                                                {action.label}
-                                            </Button>
-                                        ))}
+                                        .map((action, index) => {
+                                            const isDisabled = typeof action.disabled === 'function'
+                                                ? action.disabled(null)
+                                                : action.disabled;
+
+                                            return (
+                                                <Button
+                                                    key={`top-action-end-${index}`}
+                                                    variant="default"
+                                                    disabled={isDisabled}
+                                                    onClick={() => {
+                                                        if (isDisabled) return;
+                                                        if (action.type === 'route') {
+                                                            router.visit(action.action as string);
+                                                        } else {
+                                                            (action.action as () => void)();
+                                                        }
+                                                    }}
+                                                >
+                                                    {action.icon && <span className="mr-2">{action.icon}</span>}
+                                                    {action.label}
+                                                </Button>
+                                            );
+                                        })}
                                 </div>
                             );
                         }
