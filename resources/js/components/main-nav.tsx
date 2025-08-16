@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import {
     NavigationMenu,
     NavigationMenuItem,
-    NavigationMenuLink,
     NavigationMenuList,
     navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu';
@@ -13,10 +12,10 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
     const { url } = usePage();
 
     const links = [
-        { href: route('dashboard'), label: 'Dashboard' },
-        { href: route('data-sources.index'), label: 'Data Sources' },
-        { href: route('schedules'), label: 'Schedules' },
-        { href: route('backup-logs.index'), label: 'Backup Logs' },
+        { href: route('dashboard'), label: 'Dashboard', pattern: '/dashboard' },
+        { href: route('data-sources.index'), label: 'Data Sources', pattern: '/data-sources' },
+        { href: route('schedules'), label: 'Schedules', pattern: '/schedules' },
+        { href: route('backup-logs.index'), label: 'Backup Logs', pattern: '/backup-logs' },
     ];
 
     return (
@@ -26,6 +25,12 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
                     <NavigationMenuItem key={link.href}>
                         <Link
                             href={link.href}
+                            className={cn(
+                                navigationMenuTriggerStyle(),
+                                {
+                                    'bg-accent text-accent-foreground': url.startsWith(link.pattern),
+                                },
+                            )}
                         >
                             {link.label}
                         </Link>

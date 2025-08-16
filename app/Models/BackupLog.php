@@ -244,6 +244,10 @@ class BackupLog extends Model
             ->where('status', BackupStatusEnum::completed)
             ->first();
 
+        if (blank($completeTime)) {
+            return null;
+        }
+
         return $this->created_at->diffInSeconds($completeTime->created_at, true);
     }
 

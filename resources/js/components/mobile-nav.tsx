@@ -6,10 +6,10 @@ export function MobileNav() {
     const { url } = usePage();
 
     const links = [
-        { href: route('dashboard'), label: 'Dashboard' },
-        { href: route('data-sources.index'), label: 'Data Sources' },
-        { href: route('schedules'), label: 'Schedules' },
-        { href: route('backup-logs.index'), label: 'Backup Logs' },
+        { href: route('dashboard'), label: 'Dashboard', pattern: '/dashboard' },
+        { href: route('data-sources.index'), label: 'Data Sources', pattern: '/data-sources' },
+        { href: route('schedules'), label: 'Schedules', pattern: '/schedules' },
+        { href: route('backup-logs.index'), label: 'Backup Logs', pattern: '/backup-logs' },
     ];
 
     return (
@@ -21,7 +21,7 @@ export function MobileNav() {
                     className={cn(
                         'flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground',
                         {
-                            'text-foreground': url.startsWith(link.href),
+                            'text-foreground': url.startsWith(link.pattern),
                         },
                     )}
                 >
