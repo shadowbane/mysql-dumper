@@ -34,7 +34,7 @@ export default function Header() {
 
                     {/* Desktop Logo and Navigation */}
                     <Link href={route('dashboard')} className="mr-6 hidden items-center space-x-2 md:flex">
-                        <div className="h-8 w-8 rounded-full bg-primary" />
+                        {/*<div className="h-8 w-8 rounded-full bg-primary" />*/}
                         <span className="hidden font-bold sm:inline-block">{props.appName}</span>
                     </Link>
                     <MainNav className="hidden md:flex" />

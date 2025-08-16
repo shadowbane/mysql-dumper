@@ -16,7 +16,7 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
         { href: route('dashboard'), label: 'Dashboard' },
         { href: route('data-sources.index'), label: 'Data Sources' },
         { href: route('schedules'), label: 'Schedules' },
-        { href: route('logs'), label: 'Backup Logs' },
+        { href: route('backup-logs.index'), label: 'Backup Logs' },
     ];
 
     return (

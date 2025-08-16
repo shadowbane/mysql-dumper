@@ -36,6 +36,7 @@ class BackupLog extends Model
         'filename',
         'file_path',
         'file_size',
+        'file_deleted_at',
         'warnings',
         'errors',
         'metadata',
@@ -58,9 +59,14 @@ class BackupLog extends Model
             'metadata' => 'array',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'file_deleted_at' => 'datetime',
             'file_size' => 'integer',
         ];
     }
+
+    protected $appends = [
+        'human_size',
+    ];
 
     /**
      * @return BelongsTo
@@ -193,13 +199,68 @@ class BackupLog extends Model
      */
     public function getHumanSizeAttribute(): string
     {
+        if (! $this->file_size) {
+            return 'Unknown';
+        }
+
         $bytes = $this->file_size;
         $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
 
-        for ($i = 0; $bytes > 1024; $i++) {
-            $bytes /= 1024;
+        for ($i = 0; $bytes > 1000; $i++) {
+            $bytes /= 1000;
         }
 
         return round($bytes, 2).' '.$units[$i];
+    }
+
+    /**
+     * Check if the backup file is available (not deleted).
+     */
+    public function isFileAvailable(): bool
+    {
+        return ! $this->file_deleted_at && $this->file_path && $this->status === BackupStatusEnum::completed;
+    }
+
+    /**
+     * Mark the backup file as deleted.
+     */
+    public function markFileAsDeleted(): void
+    {
+        $this->update([
+            'file_deleted_at' => now(),
+        ]);
+    }
+
+    /**
+     * Get duration between started_at and completed_at.
+     */
+    public function getDuration(): ?int
+    {
+        if (! $this->started_at || ! $this->completed_at) {
+            return null;
+        }
+
+        return $this->completed_at->diffInSeconds($this->started_at);
+    }
+
+    /**
+     * Get human-readable duration.
+     */
+    public function getHumanDuration(): ?string
+    {
+        $seconds = $this->getDuration();
+
+        if ($seconds === null) {
+            return null;
+        }
+
+        if ($seconds < 60) {
+            return "{$seconds}s";
+        } elseif ($seconds < 3600) {
+            return round($seconds / 60, 1).'m';
+        }
+
+        return round($seconds / 3600, 1).'h';
+
     }
 }

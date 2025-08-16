@@ -48,7 +48,16 @@ Route::middleware('auth')->group(function () {
     // Schedules
     Route::get('schedules', fn() => response()->json(['message' => 'Under Construction']))
         ->name('schedules');
+
     // Backup Logs
-    Route::get('logs', fn() => response()->json(['message' => 'Under Construction']))
-        ->name('logs');
+    Route::prefix('backup-logs')->name('backup-logs.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\BackupLogController::class, 'index'])
+            ->name('index');
+        Route::get('{backup_log}', [\App\Http\Controllers\BackupLogController::class, 'show'])
+            ->name('show');
+        Route::delete('{backup_log}/file', [\App\Http\Controllers\BackupLogController::class, 'deleteFile'])
+            ->name('delete-file');
+        Route::get('{backup_log}/download', [\App\Http\Controllers\BackupLogController::class, 'download'])
+            ->name('download');
+    });
 });
