@@ -46,8 +46,12 @@ Route::middleware('auth')->group(function () {
     });
 
     // Schedules
-    Route::get('schedules', fn() => response()->json(['message' => 'Under Construction']))
-        ->name('schedules');
+    Route::prefix('schedules')->name('schedules.')->group(function () {
+        Route::resource('/', \App\Http\Controllers\ScheduleController::class)
+            ->parameters([
+                '' => 'schedule',
+            ]);
+    });
 
     // Backup Logs
     Route::prefix('backup-logs')->name('backup-logs.')->group(function () {

@@ -30,6 +30,7 @@ class BackupLog extends Model
 
     protected $fillable = [
         'data_source_id',
+        'schedule_id',
         'status',
         'type',
         'disk',
@@ -77,6 +78,14 @@ class BackupLog extends Model
     }
 
     /**
+     * @return BelongsTo
+     */
+    public function schedule(): BelongsTo
+    {
+        return $this->belongsTo(Schedule::class);
+    }
+
+    /**
      * @return HasMany
      */
     public function timelines(): HasMany
@@ -86,6 +95,10 @@ class BackupLog extends Model
 
     /**
      * Create timeline entry for status change.
+     *
+     * @param  BackupStatusEnum  $status
+     * @param  array  $metadata
+     * @return void
      */
     public function recordStatusChange(BackupStatusEnum $status, array $metadata = []): void
     {
@@ -196,6 +209,8 @@ class BackupLog extends Model
 
     /**
      * Get human-readable file size.
+     *
+     * @return string
      */
     public function getHumanSizeAttribute(): string
     {
@@ -215,6 +230,8 @@ class BackupLog extends Model
 
     /**
      * Check if the backup file is available (not deleted).
+     *
+     * @return bool
      */
     public function isFileAvailable(): bool
     {
@@ -223,6 +240,8 @@ class BackupLog extends Model
 
     /**
      * Mark the backup file as deleted.
+     *
+     * @return void
      */
     public function markFileAsDeleted(): void
     {
@@ -233,6 +252,8 @@ class BackupLog extends Model
 
     /**
      * Get duration between started_at and completed_at.
+     *
+     * @return int|null
      */
     public function getDuration(): ?int
     {
@@ -253,6 +274,8 @@ class BackupLog extends Model
 
     /**
      * Get human-readable duration.
+     *
+     * @return string|null
      */
     public function getHumanDuration(): ?string
     {

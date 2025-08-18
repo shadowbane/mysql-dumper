@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Traits\HasUlid32;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -47,6 +48,15 @@ class DataSource extends Model
     public function backupLogs(): HasMany
     {
         return $this->hasMany(BackupLog::class);
+    }
+
+    /**
+     * @return BelongsToMany
+     */
+    public function schedules(): BelongsToMany
+    {
+        return $this->belongsToMany(Schedule::class, 'schedule_data_sources')
+            ->withTimestamps();
     }
 
     /**

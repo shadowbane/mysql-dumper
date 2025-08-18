@@ -4,6 +4,7 @@ import { DataSource } from './datasource';
 
 export interface BackupLog extends BaseModel {
     data_source_id: string;
+    schedule_id: string | null;
     status: 'Pending' | 'Running' | 'Completed' | 'Failed';
     type: 'Automated' | 'Manual';
     disk: string | null;
