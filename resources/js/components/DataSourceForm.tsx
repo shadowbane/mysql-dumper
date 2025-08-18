@@ -366,7 +366,15 @@ export default function DataSourceForm({ dataSource, onSubmit, isEditing = false
                     </CardContent>
                 </Card>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => window.history.back()}
+                    >
+                        Cancel
+                    </Button>
+
                     <Button
                         type="submit"
                         disabled={form.formState.isSubmitting}
@@ -380,14 +388,6 @@ export default function DataSourceForm({ dataSource, onSubmit, isEditing = false
                         ) : (
                             isEditing ? 'Update' : 'Create'
                         )}
-                    </Button>
-
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => window.history.back()}
-                    >
-                        Cancel
                     </Button>
                 </div>
             </form>

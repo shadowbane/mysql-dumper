@@ -117,21 +117,21 @@ export default function BackupLogShow({backupLog}: Props) {
 
             <div className="flex flex-1 flex-col gap-4 p-4 pt-0 mt-4">
                 <div className="mx-4">
-                    {/* Header */}
+                    <div className="mb-4">
+                        <Link href={route('backup-logs.index')}>
+                            <Button variant="outline" size="sm">
+                                <ArrowLeft className="h-4 w-4 mr-2"/>
+                                Back to Logs
+                            </Button>
+                        </Link>
+                    </div>
+                    
                     <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                            <Link href={route('backup-logs.index')}>
-                                <Button variant="outline" size="sm">
-                                    <ArrowLeft className="h-4 w-4 mr-2"/>
-                                    Back to Logs
-                                </Button>
-                            </Link>
-                            <div>
-                                <h1 className="text-2xl font-bold">Backup Details</h1>
-                                <p className="text-muted-foreground">
-                                    {backupLog.data_source?.name} - {format(backupLog.created_at, 'd MMMM Y')}, {formatShortDate(backupLog.created_at)}
-                                </p>
-                            </div>
+                        <div>
+                            <h1 className="text-2xl font-bold">Backup Details</h1>
+                            <p className="text-muted-foreground">
+                                {backupLog.data_source?.name} - {format(backupLog.created_at, 'd MMMM Y')}, {formatShortDate(backupLog.created_at)}
+                            </p>
                         </div>
                         <div className="flex gap-2">
                             {backupLog.is_file_available && (
