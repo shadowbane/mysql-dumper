@@ -162,6 +162,87 @@ class BackupLog extends Model
     }
 
     /**
+     * Mark the backup as ready for destination storage.
+     *
+     * @param  string  $filename
+     * @param  int  $fileSize
+     * @param  array|null  $metadata
+     * @return void
+     */
+    public function markAsBackupReady(string $filename, int $fileSize, ?array $metadata = null): void
+    {
+        $this->update([
+            'status' => BackupStatusEnum::backup_ready,
+            'filename' => $filename,
+            'file_size' => $fileSize,
+            'metadata' => $metadata,
+        ]);
+
+        $this->recordStatusChange(BackupStatusEnum::backup_ready, [
+            'backup_ready_at' => now()->toISOString(),
+            'filename' => $filename,
+            'file_size' => $fileSize,
+            'backup_metadata' => $metadata,
+        ]);
+    }
+
+    /**
+     * Mark the backup as storing to destinations.
+     *
+     * @param  array  $destinations
+     * @return void
+     */
+    public function markAsStoringToDestinations(array $destinations = []): void
+    {
+        $this->update([
+            'status' => BackupStatusEnum::storing_to_destinations,
+        ]);
+
+        $this->recordStatusChange(BackupStatusEnum::storing_to_destinations, [
+            'storing_started_at' => now()->toISOString(),
+            'destinations' => $destinations,
+        ]);
+    }
+
+    /**
+     * Record a destination completion (success or failure).
+     *
+     * @param  string  $destinationId
+     * @param  bool  $success
+     * @param  string|null  $filePath
+     * @param  string|null  $errorMessage
+     * @param  array  $metadata
+     * @return void
+     */
+    public function recordDestinationCompletion(
+        string $destinationId,
+        bool $success,
+        ?string $filePath = null,
+        ?string $errorMessage = null,
+        array $metadata = []
+    ): void {
+        $timelineMetadata = [
+            'destination_id' => $destinationId,
+            'success' => $success,
+            'completed_at' => now()->toISOString(),
+        ];
+
+        if ($success && $filePath) {
+            $timelineMetadata['file_path'] = $filePath;
+        }
+
+        if (! $success && $errorMessage) {
+            $timelineMetadata['error_message'] = $errorMessage;
+        }
+
+        if (! empty($metadata)) {
+            $timelineMetadata['metadata'] = $metadata;
+        }
+
+        $this->recordStatusChange(BackupStatusEnum::storing_to_destinations, $timelineMetadata);
+    }
+
+    /**
      * @param  Throwable  $exception
      * @return void
      */

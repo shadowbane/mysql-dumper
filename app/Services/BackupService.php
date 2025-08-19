@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\BackupServiceInterface;
 use App\DTO\ConnectionDTO;
+use App\Events\BackupReadyEvent;
 use App\Exceptions\BackupException;
 use App\Models\BackupLog;
 use Druidfi\Mysqldump as IMysqldump;
@@ -46,24 +47,28 @@ class BackupService implements BackupServiceInterface
             $this->setDisk($backupLog->disk);
 
             // Perform backup
-            $filePath = $this->backup($connectionDTO, $backupLog);
+            $temporaryFilePath = $this->backup($connectionDTO, $backupLog);
 
             // Get file info for backup log
-            $filename = basename($filePath);
-            $fileSize = Storage::disk($backupLog->disk)->size($filePath);
+            $filename = basename($temporaryFilePath);
+            $fileSize = filesize($temporaryFilePath);
 
-            // Mark backup as completed
-            $backupLog->markAsCompleted(
+            $metadata = [
+                'database' => $dataSource->database,
+                'tables_backed_up' => count($connectionDTO->skippedTables ? array_diff($this->getTables($connectionDTO), $connectionDTO->skippedTables) : $this->getTables($connectionDTO)),
+                'structure_only_tables' => $connectionDTO->structureOnly,
+                'skipped_tables' => $connectionDTO->skippedTables,
+            ];
+
+            // Mark backup as ready and emit event for destination storage
+            $backupLog->markAsBackupReady(
                 filename: $filename,
-                filePath: $filePath,
                 fileSize: $fileSize,
-                metadata: [
-                    'database' => $dataSource->database,
-                    'tables_backed_up' => count($connectionDTO->skippedTables ? array_diff($this->getTables($connectionDTO), $connectionDTO->skippedTables) : $this->getTables($connectionDTO)),
-                    'structure_only_tables' => $connectionDTO->structureOnly,
-                    'skipped_tables' => $connectionDTO->skippedTables,
-                ]
+                metadata: $metadata
             );
+
+            // Emit event for destination handlers
+            BackupReadyEvent::dispatch($backupLog, $temporaryFilePath, $filename, $fileSize, $metadata);
 
         } catch (Exception $e) {
             // Mark backup as failed
@@ -109,20 +114,14 @@ class BackupService implements BackupServiceInterface
                 $tableFiles[] = $structureFile;
             }
 
-            // Create ZIP archive
+            // Create ZIP archive and return the temporary file path
             $zipPath = $this->createZipArchive($tableFiles, $temporaryDirectory, $connection->database);
 
-            // Upload to the configured disk and path
-            $finalPath = $this->path.'/'.$filename;
-            $zipContents = file_get_contents($zipPath);
-
-            if (! Storage::disk($this->disk)->put($finalPath, $zipContents)) {
-                throw BackupException::fileWriteFailed($finalPath);
-            }
-
-            return $finalPath;
+            return $zipPath;
 
         } catch (Exception $e) {
+            $temporaryDirectory->delete();
+
             if ($e instanceof BackupException) {
                 throw $e;
             }
@@ -130,8 +129,6 @@ class BackupService implements BackupServiceInterface
             throw BackupException::backupFailed($connection->database, $e, [
                 'reason' => $e->getMessage(),
             ]);
-        } finally {
-            $temporaryDirectory->delete();
         }
     }
 
