@@ -36,11 +36,12 @@ class DashboardController extends Controller
             ->get()
             ->map(fn(BackupLog $log) => [
                 'id' => $log->id,
-                'data_source_name' => $log->dataSource->name,
+                'type' => $log->type,
                 'status' => $log->status->value,
-                'size' => $log->human_size,
-                'date' => $log->created_at->format('Y-m-d H:i A'),
+                'human_size' => $log->human_size,
+                'created_at' => $log->created_at,
                 'is_file_available' => $log->isFileAvailable(),
+                'data_source' => $log->dataSource,
             ]);
     }
 

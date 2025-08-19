@@ -22,7 +22,7 @@ declare namespace App.Dashboard {
 
     export interface PageProps extends App.Shared.PageProps {
         stats: Stats;
-        recentBackups: Partial<BackupLog>
+        recentBackups: Partial<BackupLog>[];
         activeDataSources: Partial<DataSource>[];
     }
 }

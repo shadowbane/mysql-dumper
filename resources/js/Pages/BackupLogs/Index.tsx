@@ -19,6 +19,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {useState} from 'react';
+import {downloadBackup} from "@/components/functions/backups";
 
 interface Props {
     backupLogs: PaginatedResponse<BackupLog>;
@@ -29,16 +30,6 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [backupToDelete, setBackupToDelete] = useState<BackupLog | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-
-    const downloadBackup = async (backupLog: BackupLog) => {
-        try {
-            window.open(route('backup-logs.download', {backup_log: backupLog.id}), '_blank');
-        } catch (error: any) {
-            toast.error("Download error", {
-                description: "An error occurred while downloading the backup file.",
-            });
-        }
-    };
 
     const openDeleteDialog = (backupLog: BackupLog) => {
         setBackupToDelete(backupLog);

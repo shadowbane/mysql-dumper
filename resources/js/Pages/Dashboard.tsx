@@ -1,19 +1,21 @@
-import {Head, router} from '@inertiajs/react';
+import {Head} from '@inertiajs/react';
 import {Activity, ArrowUpRight, CreditCard, Download, HardDrive, Users} from 'lucide-react';
 
 import MainLayout from '@/layouts/Main';
-import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
+import {Avatar, AvatarFallback} from '@/components/ui/avatar';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table';
 import {DataSource} from "@/types/datasource";
-import { toast } from 'sonner';
-import {triggerBackup} from "@/components/functions/backups";
+import {downloadBackup, triggerBackup} from "@/components/functions/backups";
+import {App} from "@/types/dashboard";
+import {BackupLog} from "@/types/backup-log";
+import { format } from 'date-fns';
 
 export default function Dashboard({stats, recentBackups, activeDataSources}: App.Dashboard.PageProps) {
-    console.log(recentBackups);
-    console.log(activeDataSources);
+    // console.log(recentBackups);
+    // console.log(activeDataSources);
 
     return (
         <MainLayout>
@@ -89,10 +91,9 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Data Source</TableHead>
-                                            <TableHead className="hidden xl:table-column">Status</TableHead>
-                                            <TableHead className="hidden xl:table-column">Size</TableHead>
-                                            <TableHead className="text-right">Date</TableHead>
+                                            <TableHead colSpan={2}>Data Source</TableHead>
+                                            {/*<TableHead className="text-left">Status</TableHead>*/}
+                                            <TableHead className="text-right">Timestamp</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -100,30 +101,53 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                         {recentBackups.map((backup) => (
                                             <TableRow key={backup.id}>
                                                 <TableCell>
-                                                    <div className="font-medium">{backup.data_source_name}</div>
-                                                    <div className="hidden text-sm text-muted-foreground md:inline">
-                                                        ID: {backup.id}
+                                                    <div
+                                                        className="font-medium">{backup.data_source?.name}</div>
+                                                </TableCell>
+                                                <TableCell className="text-left">
+                                                    <div className="hidden text-sm text-muted-foreground md:flex md:gap-2 md:items-center">
+                                                        <Badge
+                                                            className="text-xs"
+                                                            variant={backup.type === 'Manual' ? 'default' : 'secondary'}
+                                                        >
+                                                            {backup.type}
+                                                        </Badge>
+                                                        <Badge
+                                                            className="text-xs"
+                                                            variant={
+                                                                backup.status === 'Completed' ? 'default' :
+                                                                    backup.status === 'Failed' ? 'destructive' :
+                                                                        backup.status === 'Running' ? 'outline' : 'secondary'
+                                                            }
+                                                        >
+                                                            {backup.status}
+                                                        </Badge>
+                                                        <span className={'font-mono'}>
+                                                            {(()=>{
+                                                                if (!backup.is_file_available) {
+                                                                    if (backup.status === 'Completed') {
+                                                                        return 'Deleted';
+                                                                    }
+
+                                                                    return 'N/A';
+                                                                }
+
+                                                                if (backup.human_size !== 'Unknown') {
+                                                                    return backup.human_size;
+                                                                }
+
+                                                                return 'N/A';
+                                                            })()}
+                                                        </span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="hidden xl:table-column">
-                                                    <Badge
-                                                        className="text-xs"
-                                                        variant={
-                                                            backup.status === 'completed' ? 'outline' :
-                                                                backup.status === 'failed' ? 'destructive' :
-                                                                    backup.status === 'running' ? 'secondary' : 'outline'
-                                                        }
-                                                    >
-                                                        {backup.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="hidden xl:table-column">{backup.size}</TableCell>
-                                                <TableCell className="text-right">{backup.date}</TableCell>
+                                                <TableCell className="text-right">{format(new Date(backup.created_at as string), "dd LLL y HH:mm:ss")}</TableCell>
                                                 <TableCell className="text-right">
                                                     <Button
                                                         size="icon"
                                                         variant="outline"
                                                         disabled={!backup.is_file_available}
+                                                        onClick={() => downloadBackup(backup as BackupLog)}
                                                     >
                                                         <Download className="h-4 w-4"/>
                                                     </Button>
@@ -146,7 +170,7 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                     <div key={dataSource.id} className="flex items-center gap-4">
                                         <Avatar className="hidden h-9 w-9 sm:flex">
                                             <AvatarFallback>
-                                                {dataSource.name.substring(0, 2).toUpperCase()}
+                                                {dataSource?.name?.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="grid gap-1">
@@ -156,8 +180,8 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                         <div className="ml-auto font-medium">
                                             <Button
                                                 size="sm"
-                                                onClick={() => triggerBackup(dataSource)}
-                                                disabled={["Pending", "Running"].includes(dataSource?.latest_backup_log?.status)}
+                                                onClick={() => triggerBackup(dataSource as DataSource)}
+                                                disabled={["Pending", "Running"].includes(dataSource?.latest_backup_log?.status as string)}
                                             >Backup Now</Button>
                                         </div>
                                     </div>
