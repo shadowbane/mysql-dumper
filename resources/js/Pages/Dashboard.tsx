@@ -1,4 +1,4 @@
-import {Head} from '@inertiajs/react';
+import {Head, router} from '@inertiajs/react';
 import {Activity, ArrowUpRight, CreditCard, Download, HardDrive, Users} from 'lucide-react';
 
 import MainLayout from '@/layouts/Main';
@@ -17,6 +17,13 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
     // console.log(recentBackups);
     // console.log(activeDataSources);
 
+    const runTriggerBackup = (dataSource: DataSource) => {
+        triggerBackup(dataSource).then(() => {
+            router.get(route('dashboard'), {}, {
+                only: ['recentBackups', 'activeDataSources']
+            });
+        });
+    };
     return (
         <MainLayout>
             <Head title="Dashboard"/>
@@ -180,7 +187,7 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                         <div className="ml-auto font-medium">
                                             <Button
                                                 size="sm"
-                                                onClick={() => triggerBackup(dataSource as DataSource)}
+                                                onClick={() => runTriggerBackup(dataSource as DataSource)}
                                                 disabled={["Pending", "Running"].includes(dataSource?.latest_backup_log?.status as string)}
                                             >Backup Now</Button>
                                         </div>
