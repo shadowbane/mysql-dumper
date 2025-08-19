@@ -51,20 +51,4 @@ interface BackupServiceInterface
      * @return array List of table names
      */
     public function getTables(ConnectionDTO $connection): array;
-
-    /**
-     * Set the disk where backups should be stored.
-     *
-     * @param  string  $disk  The filesystem disk name
-     * @return self
-     */
-    public function setDisk(string $disk): self;
-
-    /**
-     * Set the directory path within the disk where backups should be stored.
-     *
-     * @param  string  $path  The directory path
-     * @return self
-     */
-    public function setPath(string $path): self;
 }

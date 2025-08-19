@@ -43,9 +43,6 @@ class BackupService implements BackupServiceInterface
                 structureOnly: $dataSource->structure_only ? preg_split('/\s*,\s*/', $dataSource->structure_only) : []
             );
 
-            // Set backup service disk and path
-            $this->setDisk($backupLog->disk);
-
             // Perform backup
             $temporaryFilePath = $this->backup($connectionDTO, $backupLog);
 
@@ -201,24 +198,6 @@ class BackupService implements BackupServiceInterface
                 'reason' => $e->getMessage(),
             ]);
         }
-    }
-
-    public function setDisk(string $disk): self
-    {
-        if (! Storage::disk($disk)) {
-            throw BackupException::invalidConfiguration('disk', "Disk '{$disk}' is not configured");
-        }
-
-        $this->disk = $disk;
-
-        return $this;
-    }
-
-    public function setPath(string $path): self
-    {
-        $this->path = trim($path, '/');
-
-        return $this;
     }
 
     private function getTablesToBackup(ConnectionDTO $connection): array
