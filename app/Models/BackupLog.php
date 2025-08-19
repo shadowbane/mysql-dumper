@@ -243,6 +243,35 @@ class BackupLog extends Model
     }
 
     /**
+     * Mark the backup as partially failed (some destinations succeeded, others failed).
+     *
+     * @param  string  $filename
+     * @param  string  $filePath
+     * @param  int  $fileSize
+     * @param  array|null  $metadata
+     * @return void
+     */
+    public function markAsPartiallyFailed(string $filename, string $filePath, int $fileSize, ?array $metadata = null): void
+    {
+        $this->update([
+            'status' => BackupStatusEnum::partially_failed,
+            'filename' => $filename,
+            'file_path' => $filePath,
+            'file_size' => $fileSize,
+            'metadata' => $metadata,
+            'completed_at' => now(),
+        ]);
+
+        $this->recordStatusChange(BackupStatusEnum::partially_failed, [
+            'partially_failed_at' => now()->toISOString(),
+            'filename' => $filename,
+            'file_path' => $filePath,
+            'file_size' => $fileSize,
+            'backup_metadata' => $metadata,
+        ]);
+    }
+
+    /**
      * @param  Throwable  $exception
      * @return void
      */
@@ -316,7 +345,8 @@ class BackupLog extends Model
      */
     public function isFileAvailable(): bool
     {
-        return ! $this->file_deleted_at && $this->file_path && $this->status === BackupStatusEnum::completed;
+        return ! $this->file_deleted_at && $this->file_path &&
+               in_array($this->status, [BackupStatusEnum::completed, BackupStatusEnum::partially_failed]);
     }
 
     /**

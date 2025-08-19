@@ -105,8 +105,8 @@ class HandleBackupReadyEvent implements ShouldQueue
                     ])
                 );
             } elseif ($successes > 0) {
-                // Some destinations succeeded, some failed - mark as completed with warnings
-                $event->backupLog->markAsCompleted(
+                // Some destinations succeeded, some failed - mark as partially failed
+                $event->backupLog->markAsPartiallyFailed(
                     $event->filename,
                     'multiple_destinations',
                     $event->fileSize,

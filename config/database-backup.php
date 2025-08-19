@@ -13,7 +13,7 @@ return [
          * Add or remove destinations as needed.
          */
         'enabled' => [
-            // \App\Services\Destinations\LocalBackupDestination::class,
+            \App\Services\Destinations\LocalBackupDestination::class,
 
             // Add your custom destinations here
             // \App\Services\Destinations\S3BackupDestination::class,
