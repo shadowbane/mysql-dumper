@@ -4,7 +4,7 @@ import {ArrowLeft} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Link} from '@inertiajs/react';
 import MainLayout from '@/layouts/Main';
-import DataSourceForm from '@/components/DataSourceForm';
+import DataSourceForm from "@/components/Custom/data-source/DataSourceForm";
 import {DataSource} from '@/types/datasource';
 import {toast} from 'sonner';
 import {route} from 'ziggy-js';

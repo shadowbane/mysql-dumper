@@ -4,7 +4,7 @@ import {ArrowLeft} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Link} from '@inertiajs/react';
 import MainLayout from '@/layouts/Main';
-import ScheduleForm from '@/components/ScheduleForm';
+import ScheduleForm from "@/components/Custom/schedules/ScheduleForm";
 import {Schedule} from '@/types/schedule';
 import {DataSource} from '@/types/datasource';
 import {ScheduleFormData} from '@/schemas/scheduleSchema';
