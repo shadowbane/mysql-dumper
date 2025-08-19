@@ -48,12 +48,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Schedules
-    Route::prefix('schedules')->name('schedules.')->group(function () {
-        Route::resource('/', ScheduleController::class)
-            ->parameters([
-                '' => 'schedule',
-            ]);
-    });
+    Route::resource('schedules', ScheduleController::class);
 
     // Backup Logs
     Route::prefix('backup-logs')->name('backup-logs.')->group(function () {
