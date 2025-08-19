@@ -1,5 +1,6 @@
 import {Head, router} from '@inertiajs/react';
 import {Activity, ArrowUpRight, CreditCard, Download, HardDrive, Users} from 'lucide-react';
+import {useEffect} from 'react';
 
 import MainLayout from '@/layouts/Main';
 import {Avatar, AvatarFallback} from '@/components/ui/avatar';
@@ -16,6 +17,17 @@ import { format } from 'date-fns';
 export default function Dashboard({stats, recentBackups, activeDataSources}: App.Dashboard.PageProps) {
     // console.log(recentBackups);
     // console.log(activeDataSources);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            router.get(route('dashboard'), {}, {
+                only: ['stats', 'recentBackups', 'activeDataSources'],
+                preserveScroll: true
+            });
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const runTriggerBackup = (dataSource: DataSource) => {
         triggerBackup(dataSource).then(() => {
