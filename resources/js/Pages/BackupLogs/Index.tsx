@@ -1,25 +1,12 @@
 import {DataTable} from '@/components/ui/data-table-server-side';
 import {createDynamicColumns} from '@/components/ui/data-table/columns/column-factory';
 import {route} from 'ziggy-js';
-import {Head, router} from '@inertiajs/react';
+import {Head} from '@inertiajs/react';
 import {PaginatedResponse} from '@/types/paginated-response';
 import {BackupLog} from '@/types/backup-log';
 import {DataSource} from '@/types/datasource';
-import {Download, Trash2, Eye} from 'lucide-react';
-import {toast} from 'sonner';
 import MainLayout from '@/layouts/Main';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {useState} from 'react';
-import {downloadBackup} from "@/components/functions/backups";
+import {format} from 'date-fns';
 
 interface Props {
     backupLogs: PaginatedResponse<BackupLog>;
@@ -27,78 +14,6 @@ interface Props {
 }
 
 export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [backupToDelete, setBackupToDelete] = useState<BackupLog | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    const openDeleteDialog = (backupLog: BackupLog) => {
-        setBackupToDelete(backupLog);
-        setDeleteDialogOpen(true);
-    };
-
-    const closeDeleteDialog = () => {
-        setDeleteDialogOpen(false);
-        setBackupToDelete(null);
-        setIsDeleting(false);
-    };
-
-    const confirmDeleteBackupFile = () => {
-        if (!backupToDelete) return;
-
-        setIsDeleting(true);
-        router.delete(route('backup-logs.delete-file', {backup_log: backupToDelete.id}), {
-            preserveScroll: true,
-            onError: (errors: any) => {
-                const errorMessage = errors?.message || errors?.error || errors?.[0] || 'An error occurred while deleting the backup file.';
-                toast.error("Delete error", {
-                    description: errorMessage,
-                });
-                closeDeleteDialog();
-            },
-            onSuccess: () => {
-                toast.success("File deleted", {
-                    description: "Backup file deleted successfully. Log entry preserved.",
-                });
-                closeDeleteDialog();
-            }
-        });
-    };
-
-    const tableActions = () => {
-        return {
-            additionalActions: [
-                {
-                    type: 'command' as const,
-                    label: 'View Details',
-                    action: (row: BackupLog) => {
-                        router.visit(route('backup-logs.show', {backup_log: row.id}));
-                    },
-                    icon: <Eye className="h-4 w-4"/>,
-                    placement: 'inline' as const,
-                    order: 'beginning' as const,
-                },
-                {
-                    type: 'command' as const,
-                    label: 'Download',
-                    action: (row: BackupLog) => downloadBackup(row),
-                    icon: <Download className="h-4 w-4"/>,
-                    placement: 'inline' as const,
-                    disabled: (row: BackupLog) => !row.is_file_available,
-                    order: 'beginning' as const,
-                },
-                {
-                    type: 'command' as const,
-                    label: 'Delete File',
-                    action: (row: BackupLog) => openDeleteDialog(row),
-                    icon: <Trash2 className="h-4 w-4"/>,
-                    placement: 'inline' as const,
-                    disabled: (row: BackupLog) => !row.is_file_available,
-                    order: 'end' as const,
-                },
-            ],
-        };
-    };
-
     const getStatusVariant = (status: string) => {
         switch (status) {
             case 'Completed':
@@ -140,20 +55,6 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
         return row.is_file_available ? 'default' : 'secondary';
     };
 
-    const formatDate = (dateString: string | null) => {
-        if (!dateString) return 'Never';
-        const date = new Date(dateString);
-
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = date.toLocaleString('default', {month: 'short'});
-        const year = date.getFullYear();
-
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-
-        return `${day}/${month}/${year} ${hours}:${minutes}`;
-    };
-
     return (
         <MainLayout>
             <Head title="Backup Logs"/>
@@ -177,14 +78,14 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
                                 label: "Status",
                                 name: "status",
                                 type: "badge",
-                                sortable: true,
+                                sortable: false,
                                 transformVariant: (value: string) => getStatusVariant(value),
                             },
                             {
                                 label: "Type",
                                 name: "type",
                                 type: "badge",
-                                sortable: true,
+                                sortable: false,
                                 transformVariant: (value: string) => getTypeVariant(value),
                             },
                             {
@@ -213,10 +114,9 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
                                 name: "created_at",
                                 type: "text",
                                 sortable: true,
-                                transform: (value: string) => formatDate(value),
+                                transform: (value: string) => format(new Date(value), 'dd LLL y HH:mm:ss'),
                             },
                         ])}
-                        actions={tableActions()}
                         filters={[
                             {
                                 type: 'select',
@@ -258,34 +158,20 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
                                 label: 'Date To',
                             },
                         ]}
+                        rowClick={{
+                            enabled: true,
+                            action: 'route',
+                            route: route('backup-logs.index'),
+                            routeParam: 'id', // Use the 'id' field from each row for the route parameter
+                            stopPropagation: true,
+                            excludeClickOnColumns: ['actions', 'expander'],
+                            // Example using custom action:
+                            // action: 'function',
+                            // onClick: handleJournalRowClick,
+                        }}
                     />
                 </div>
             </div>
-
-            {/* Delete Confirmation Dialog */}
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Backup File</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Are you sure you want to delete this backup file? The log entry will be preserved but the file will be permanently deleted.
-                            {backupToDelete && `\n\nData Source: ${backupToDelete.data_source?.name}`}
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={closeDeleteDialog} disabled={isDeleting}>
-                            Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={confirmDeleteBackupFile}
-                            disabled={isDeleting}
-                            className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
-                        >
-                            {isDeleting ? 'Deleting...' : 'Delete File'}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </MainLayout>
     );
 }

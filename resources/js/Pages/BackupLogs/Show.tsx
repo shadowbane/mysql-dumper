@@ -30,16 +30,6 @@ export default function BackupLogShow({backupLog}: Props) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [fileToDelete, setFileToDelete] = useState<File | null>(null);
 
-    const downloadBackup = async () => {
-        try {
-            window.open(route('backup-logs.download', {backup_log: backupLog.id}), '_blank');
-        } catch (error: any) {
-            toast.error("Download error", {
-                description: "An error occurred while downloading the backup file.",
-            });
-        }
-    };
-
     const downloadIndividualFile = async (file: File) => {
         try {
             window.open(route('backup-logs.files.download', {backup_log: backupLog.id, file: file.id}), '_blank');
@@ -52,10 +42,6 @@ export default function BackupLogShow({backupLog}: Props) {
 
     const openIndividualDeleteDialog = (file: File) => {
         setFileToDelete(file);
-        setDeleteDialogOpen(true);
-    };
-
-    const openDeleteDialog = () => {
         setDeleteDialogOpen(true);
     };
 
@@ -119,16 +105,60 @@ export default function BackupLogShow({backupLog}: Props) {
         }
     };
 
-    const formatDate = (dateString: string | null) => {
-        if (!dateString) return 'Never';
-        const date = new Date(dateString);
-        return date.toLocaleString();
-    };
-
     const formatShortDate = (dateString: string | null) => {
         if (!dateString) return 'Never';
         const date = new Date(dateString);
         return date.toLocaleTimeString();
+    };
+
+    const formatError = (error: any) => {
+        if (typeof error === 'string') {
+            return error;
+        }
+
+        if (typeof error === 'object' && error !== null) {
+            // If it's an error object with message, show formatted details
+            if (error.message) {
+                let formattedError = `Error: ${error.message}`;
+
+                if (error.file && error.line) {
+                    formattedError += `\nFile: ${error.file}:${error.line}`;
+                }
+
+                if (error.code && error.code !== 0) {
+                    formattedError += `\nCode: ${error.code}`;
+                }
+
+                if (error.context) {
+                    formattedError += `\nContext: ${JSON.stringify(error.context, null, 2)}`;
+                }
+
+                return formattedError;
+            }
+
+            // For other objects, stringify but make it readable
+            return JSON.stringify(error, null, 2);
+        }
+
+        return String(error);
+    };
+
+    const formatWarning = (warning: any) => {
+        if (typeof warning === 'string') {
+            return warning;
+        }
+
+        if (typeof warning === 'object' && warning !== null) {
+            // If it has a message property, use that
+            if (warning.message) {
+                return warning.message;
+            }
+
+            // For other objects, stringify
+            return JSON.stringify(warning, null, 2);
+        }
+
+        return String(warning);
     };
 
     return (
@@ -260,11 +290,11 @@ export default function BackupLogShow({backupLog}: Props) {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        {timeline.metadata && Object.keys(timeline.metadata).length > 0 && (
-                                                            <div className="text-xs text-muted-foreground mt-1">
-                                                                {JSON.stringify(timeline.metadata, null, 2)}
-                                                            </div>
-                                                        )}
+                                                        {/*{timeline.metadata && Object.keys(timeline.metadata).length > 0 && (*/}
+                                                        {/*    <div className="text-xs text-muted-foreground mt-1">*/}
+                                                        {/*        {JSON.stringify(timeline.metadata, null, 2)}*/}
+                                                        {/*    </div>*/}
+                                                        {/*)}*/}
                                                     </div>
                                                 </div>
                                             ))}
@@ -378,8 +408,8 @@ export default function BackupLogShow({backupLog}: Props) {
                                     <CardContent>
                                         <div className="space-y-2">
                                             {backupLog.warnings.map((warning, index) => (
-                                                <div key={index} className="text-sm p-2 bg-yellow-50 border border-yellow-200 rounded">
-                                                    {typeof warning === 'string' ? warning : JSON.stringify(warning)}
+                                                <div key={index} className="text-sm p-2 bg-yellow-50 border border-yellow-200 rounded whitespace-pre-wrap">
+                                                    {formatWarning(warning)}
                                                 </div>
                                             ))}
                                         </div>
@@ -399,8 +429,8 @@ export default function BackupLogShow({backupLog}: Props) {
                                     <CardContent>
                                         <div className="space-y-2">
                                             {backupLog.errors.map((error, index) => (
-                                                <div key={index} className="text-sm p-2 bg-red-50 border border-red-200 rounded">
-                                                    {typeof error === 'string' ? error : JSON.stringify(error)}
+                                                <div key={index} className="text-sm p-2 bg-red-50 border border-red-200 rounded whitespace-pre-wrap">
+                                                    {formatError(error)}
                                                 </div>
                                             ))}
                                         </div>

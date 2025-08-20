@@ -55,10 +55,6 @@ Route::middleware('auth')->group(function () {
             ->name('index');
         Route::get('{backup_log}', [BackupLogController::class, 'show'])
             ->name('show');
-        Route::delete('{backup_log}/file', [BackupLogController::class, 'deleteFile'])
-            ->name('delete-file');
-        Route::get('{backup_log}/download', [BackupLogController::class, 'download'])
-            ->name('download');
 
         // Individual file operations
         Route::get('{backup_log}/files/{file}/download', [BackupLogController::class, 'downloadFile'])

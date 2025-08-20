@@ -1,5 +1,5 @@
 import {Head, router} from '@inertiajs/react';
-import {Activity, ArrowUpRight, CreditCard, Download, HardDrive, Users} from 'lucide-react';
+import {Activity, ArrowUpRight, CreditCard, HardDrive, Users} from 'lucide-react';
 import {useEffect} from 'react';
 
 import MainLayout from '@/layouts/Main';
@@ -9,15 +9,11 @@ import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table';
 import {DataSource} from "@/types/datasource";
-import {downloadBackup, triggerBackup} from "@/components/functions/backups";
+import {triggerBackup} from "@/components/functions/backups";
 import {App} from "@/types/dashboard";
-import {BackupLog} from "@/types/backup-log";
 import { format } from 'date-fns';
 
 export default function Dashboard({stats, recentBackups, activeDataSources}: App.Dashboard.PageProps) {
-    // console.log(recentBackups);
-    // console.log(activeDataSources);
-
     useEffect(() => {
         const interval = setInterval(() => {
             router.get(route('dashboard'), {}, {
@@ -113,7 +109,6 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                             <TableHead colSpan={2}>Data Source</TableHead>
                                             {/*<TableHead className="text-left">Status</TableHead>*/}
                                             <TableHead className="text-right">Timestamp</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -161,16 +156,6 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right">{format(new Date(backup.created_at as string), "dd LLL y HH:mm:ss")}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button
-                                                        size="icon"
-                                                        variant="outline"
-                                                        disabled={!backup.is_file_available}
-                                                        onClick={() => downloadBackup(backup as BackupLog)}
-                                                    >
-                                                        <Download className="h-4 w-4"/>
-                                                    </Button>
-                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
