@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\BackupStatusEnum;
 use App\Enums\BackupTypeEnum;
+use App\Models\Traits\HasFiles;
 use App\Models\Traits\HasUlid32;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Throwable;
 
 class BackupLog extends Model
 {
-    use HasUlid32;
+    use HasFiles, HasUlid32;
 
     protected static function boot(): void
     {
@@ -33,11 +34,6 @@ class BackupLog extends Model
         'schedule_id',
         'status',
         'type',
-        'disk',
-        'filename',
-        'file_path',
-        'file_size',
-        'file_deleted_at',
         'warnings',
         'errors',
         'metadata',
@@ -60,8 +56,6 @@ class BackupLog extends Model
             'metadata' => 'array',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
-            'file_deleted_at' => 'datetime',
-            'file_size' => 'integer',
         ];
     }
 
@@ -124,28 +118,19 @@ class BackupLog extends Model
     }
 
     /**
-     * @param  string  $filename
-     * @param  string  $filePath
-     * @param  int  $fileSize
      * @param  array|null  $metadata
      * @return void
      */
-    public function markAsCompleted(string $filename, string $filePath, int $fileSize, ?array $metadata = null): void
+    public function markAsCompleted(?array $metadata = null): void
     {
         $this->update([
             'status' => BackupStatusEnum::completed,
-            'filename' => $filename,
-            'file_path' => $filePath,
-            'file_size' => $fileSize,
             'metadata' => $metadata,
             'completed_at' => now(),
         ]);
 
         $this->recordStatusChange(BackupStatusEnum::completed, [
             'completed_at' => now()->toISOString(),
-            'filename' => $filename,
-            'file_path' => $filePath,
-            'file_size' => $fileSize,
             'backup_metadata' => $metadata,
         ]);
     }
@@ -164,24 +149,18 @@ class BackupLog extends Model
     /**
      * Mark the backup as ready for destination storage.
      *
-     * @param  string  $filename
-     * @param  int  $fileSize
      * @param  array|null  $metadata
      * @return void
      */
-    public function markAsBackupReady(string $filename, int $fileSize, ?array $metadata = null): void
+    public function markAsBackupReady(?array $metadata = null): void
     {
         $this->update([
             'status' => BackupStatusEnum::backup_ready,
-            'filename' => $filename,
-            'file_size' => $fileSize,
             'metadata' => $metadata,
         ]);
 
         $this->recordStatusChange(BackupStatusEnum::backup_ready, [
             'backup_ready_at' => now()->toISOString(),
-            'filename' => $filename,
-            'file_size' => $fileSize,
             'backup_metadata' => $metadata,
         ]);
     }
@@ -245,28 +224,19 @@ class BackupLog extends Model
     /**
      * Mark the backup as partially failed (some destinations succeeded, others failed).
      *
-     * @param  string  $filename
-     * @param  string  $filePath
-     * @param  int  $fileSize
      * @param  array|null  $metadata
      * @return void
      */
-    public function markAsPartiallyFailed(string $filename, string $filePath, int $fileSize, ?array $metadata = null): void
+    public function markAsPartiallyFailed(?array $metadata = null): void
     {
         $this->update([
             'status' => BackupStatusEnum::partially_failed,
-            'filename' => $filename,
-            'file_path' => $filePath,
-            'file_size' => $fileSize,
             'metadata' => $metadata,
             'completed_at' => now(),
         ]);
 
         $this->recordStatusChange(BackupStatusEnum::partially_failed, [
             'partially_failed_at' => now()->toISOString(),
-            'filename' => $filename,
-            'file_path' => $filePath,
-            'file_size' => $fileSize,
             'backup_metadata' => $metadata,
         ]);
     }
@@ -318,17 +288,19 @@ class BackupLog extends Model
     }
 
     /**
-     * Get human-readable file size.
+     * Get human-readable total file size for all backup files.
      *
      * @return string
      */
     public function getHumanSizeAttribute(): string
     {
-        if (! $this->file_size) {
+        $totalBytes = $this->files()->sum('size_bytes');
+
+        if (! $totalBytes) {
             return 'Unknown';
         }
 
-        $bytes = $this->file_size;
+        $bytes = $totalBytes;
         $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
 
         for ($i = 0; $bytes > 1000; $i++) {
@@ -339,25 +311,25 @@ class BackupLog extends Model
     }
 
     /**
-     * Check if the backup file is available (not deleted).
+     * Check if backup files are available (not deleted).
      *
      * @return bool
      */
     public function isFileAvailable(): bool
     {
-        return ! $this->file_deleted_at && $this->file_path &&
+        return $this->files()->exists() &&
                in_array($this->status, [BackupStatusEnum::completed, BackupStatusEnum::partially_failed]);
     }
 
     /**
-     * Mark the backup file as deleted.
+     * Mark all backup files as deleted.
      *
      * @return void
      */
-    public function markFileAsDeleted(): void
+    public function markFilesAsDeleted(): void
     {
-        $this->update([
-            'file_deleted_at' => now(),
+        $this->files()->update([
+            'deleted_at' => now(),
         ]);
     }
 

@@ -63,8 +63,9 @@ class BackupDestinationService
     {
         $enabledDestinations = Config::get('database-backup.destinations.enabled', []);
 
-        foreach ($enabledDestinations as $destinationClass) {
+        foreach ($enabledDestinations as $destinationConfig) {
             try {
+                $destinationClass = $destinationConfig['class'];
                 if (! class_exists($destinationClass)) {
                     continue;
                 }
@@ -75,7 +76,7 @@ class BackupDestinationService
                 }
 
                 // Instantiate the destination class
-                $destination = new $destinationClass;
+                $destination = new $destinationClass($destinationConfig['disk'], $destinationConfig['path'] ?? '/');
                 $this->register($destination);
 
             } catch (Exception $e) {

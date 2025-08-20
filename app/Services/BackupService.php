@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\BackupServiceInterface;
 use App\DTO\ConnectionDTO;
+use App\Events\BackupFailedEvent;
 use App\Events\BackupReadyEvent;
 use App\Exceptions\BackupException;
 use App\Models\BackupLog;
@@ -59,8 +60,6 @@ class BackupService implements BackupServiceInterface
 
             // Mark backup as ready and emit event for destination storage
             $backupLog->markAsBackupReady(
-                filename: $filename,
-                fileSize: $fileSize,
                 metadata: $metadata
             );
 
@@ -70,6 +69,9 @@ class BackupService implements BackupServiceInterface
         } catch (Exception $e) {
             // Mark backup as failed
             $backupLog->markAsFailed($e);
+
+            // Emit backup failed event
+            BackupFailedEvent::dispatch($backupLog, $e);
 
             // Re-throw to trigger job failure handling
             throw $e;

@@ -13,11 +13,18 @@ return [
          * Add or remove destinations as needed.
          */
         'enabled' => [
-            \App\Services\Destinations\LocalBackupDestination::class,
+            [
+                'class' => \App\Services\Destinations\LocalBackupDestination::class,
+                'disk' => 'local',
+                'path' => 'database-backups',
+            ],
 
             // Add your custom destinations here
-            // \App\Services\Destinations\S3BackupDestination::class,
-            // \App\Services\Destinations\R2BackupDestination::class,
+            [
+                'class' => \App\Services\Destinations\S3BackupDestination::class,
+                'disk' => 's3',
+                'path' => 'database-backups',
+            ],
         ],
     ],
 ];

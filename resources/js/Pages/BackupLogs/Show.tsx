@@ -125,7 +125,7 @@ export default function BackupLogShow({backupLog}: Props) {
                             </Button>
                         </Link>
                     </div>
-                    
+
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h1 className="text-2xl font-bold">Backup Details</h1>
@@ -245,11 +245,11 @@ export default function BackupLogShow({backupLog}: Props) {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        {/*{timeline.metadata && Object.keys(timeline.metadata).length > 0 && (*/}
-                                                        {/*    <div className="text-xs text-muted-foreground mt-1">*/}
-                                                        {/*        {JSON.stringify(timeline.metadata, null, 2)}*/}
-                                                        {/*    </div>*/}
-                                                        {/*)}*/}
+                                                        {timeline.metadata && Object.keys(timeline.metadata).length > 0 && (
+                                                            <div className="text-xs text-muted-foreground mt-1">
+                                                                {JSON.stringify(timeline.metadata, null, 2)}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}

@@ -3,7 +3,9 @@
 namespace App\Listeners;
 
 use App\Contracts\BackupDestinationInterface;
+use App\Events\BackupCompletedEvent;
 use App\Events\BackupDestinationCompletedEvent;
+use App\Events\BackupFailedEvent;
 use App\Events\BackupReadyEvent;
 use App\Services\BackupDestinationService;
 use Exception;
@@ -26,7 +28,12 @@ class HandleBackupReadyEvent implements ShouldQueue
 
             if (empty($destinations)) {
                 // No destinations configured, mark as failed
-                $event->backupLog->markAsFailed(new Exception('No backup destinations configured'));
+                $exception = new Exception('No backup destinations configured');
+                $event->backupLog->markAsFailed($exception);
+
+                // Emit backup failed event
+                BackupFailedEvent::dispatch($event->backupLog, $exception);
+
                 // Clean up temporary file
                 if (file_exists($event->temporaryFilePath)) {
                     unlink($event->temporaryFilePath);
@@ -95,8 +102,17 @@ class HandleBackupReadyEvent implements ShouldQueue
             if ($successes > 0 && $failures === 0) {
                 // All destinations succeeded
                 $event->backupLog->markAsCompleted(
+                    array_merge($event->metadata, [
+                        'destinations_succeeded' => $successes,
+                        'destinations_failed' => $failures,
+                        'total_destinations' => count($destinations),
+                    ])
+                );
+
+                // Emit backup completed event
+                BackupCompletedEvent::dispatch(
+                    $event->backupLog,
                     $event->filename,
-                    'multiple_destinations', // Special marker for multiple destinations
                     $event->fileSize,
                     array_merge($event->metadata, [
                         'destinations_succeeded' => $successes,
@@ -107,9 +123,6 @@ class HandleBackupReadyEvent implements ShouldQueue
             } elseif ($successes > 0) {
                 // Some destinations succeeded, some failed - mark as partially failed
                 $event->backupLog->markAsPartiallyFailed(
-                    $event->filename,
-                    'multiple_destinations',
-                    $event->fileSize,
                     array_merge($event->metadata, [
                         'destinations_succeeded' => $successes,
                         'destinations_failed' => $failures,
@@ -124,13 +137,18 @@ class HandleBackupReadyEvent implements ShouldQueue
                 ]);
             } else {
                 // All destinations failed
-                $event->backupLog->markAsFailed(
-                    new Exception("All backup destinations failed: {$failures} out of ".count($destinations))
-                );
+                $exception = new Exception("All backup destinations failed: {$failures} out of ".count($destinations));
+                $event->backupLog->markAsFailed($exception);
+
+                // Emit backup failed event
+                BackupFailedEvent::dispatch($event->backupLog, $exception);
             }
 
         } catch (Exception $e) {
             $event->backupLog->markAsFailed($e);
+
+            // Emit backup failed event
+            BackupFailedEvent::dispatch($event->backupLog, $e);
         } finally {
             // Clean up temporary file
             if (file_exists($event->temporaryFilePath)) {

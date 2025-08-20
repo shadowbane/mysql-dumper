@@ -4,22 +4,24 @@ namespace App\Services\Destinations;
 
 use App\Contracts\BackupDestinationInterface;
 use App\Models\BackupLog;
+use App\Models\File;
 use Exception;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LocalBackupDestination implements BackupDestinationInterface
 {
-    private string $disk;
-    private string $path;
+    public function __construct(
+        private readonly string $disk,
+        private readonly string $path,
+    ) {}
 
-    public function __construct()
-    {
-        $this->disk = env('BACKUP_LOCAL_DISK', 'local');
-        $this->path = trim(env('BACKUP_LOCAL_PATH', 'database-backups'), '/');
-    }
-
-    public function store(BackupLog $backupLog, string $temporaryFilePath, string $filename, array $metadata = []): ?string
-    {
+    public function store(
+        BackupLog $backupLog,
+        string $temporaryFilePath,
+        string $filename,
+        array $metadata = []
+    ): ?string {
         try {
             $finalPath = $this->path.'/'.$filename;
             $contents = file_get_contents($temporaryFilePath);
@@ -37,6 +39,68 @@ class LocalBackupDestination implements BackupDestinationInterface
     public function getDestinationId(): string
     {
         return "local_{$this->disk}";
+    }
+
+    /**
+     * Create a file record for this destination.
+     *
+     * @param  BackupLog  $backupLog
+     * @param  string  $filename
+     * @param  string  $path
+     * @param  int  $sizeBytes
+     * @param  array  $metadata
+     *
+     * @throws Exception
+     *
+     * @return File|null
+     */
+    public function createFileRecord(BackupLog $backupLog, string $filename, string $path, int $sizeBytes, array $metadata = []): ?File
+    {
+        return $backupLog->files()->create([
+            'filename' => $filename,
+            'path' => $path,
+            'disk' => $this->disk,
+            'size_bytes' => $sizeBytes,
+            'mime_type' => 'application/zip',
+            'is_public' => false,
+            'label' => $this->getDestinationId(),
+            'hash' => hash_file('md5', Storage::disk($this->disk)->path($path)),
+        ]);
+    }
+
+    /**
+     * Delete a file record.
+     *
+     * @param  File  $file
+     * @return bool
+     */
+    public function deleteFileRecord(File $file): bool
+    {
+        if (Storage::disk($file->disk)->exists($file->path)) {
+            Storage::disk($file->disk)->delete($file->path);
+        }
+
+        return $file->delete();
+    }
+
+    /**
+     * Serve a file from storage for the user to download.
+     *
+     * @param  File  $file
+     * @return StreamedResponse
+     */
+    public function download(File $file): StreamedResponse
+    {
+        // Check if the file exists on the specified disk.
+        if (! Storage::disk($this->disk)->exists($file->path)) {
+            // If not, abort the request with a 404 'Not Found' error.
+            abort(404, 'File not found.');
+        }
+
+        // Return the download response.
+        // The second argument is the filename the user will see.
+        // The third argument is for custom headers (optional).
+        return Storage::disk($this->disk)->download($file->path, $file->name);
     }
 
     public function isEnabled(BackupLog $backupLog): bool
