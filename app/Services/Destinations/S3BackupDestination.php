@@ -16,19 +16,47 @@ class S3BackupDestination implements BackupDestinationInterface
         private readonly string $path,
     ) {}
 
-    public function store(BackupLog $backupLog, string $temporaryFilePath, string $filename, array $metadata = []): ?string
-    {
+    /**
+     * Store the backup file to this destination.
+     *
+     * @param  BackupLog  $backupLog
+     * @param  string  $temporaryFilePath
+     * @param  string  $filename
+     * @param  array  $metadata
+     *
+     * @throws Exception
+     *
+     * @return string|null The final path where the file was stored, or null if failed
+     */
+    public function store(
+        BackupLog $backupLog,
+        string $temporaryFilePath,
+        string $filename,
+        array $metadata = []
+    ): ?string {
         try {
             $finalPath = $this->path.'/'.$filename;
             $contents = file_get_contents($temporaryFilePath);
 
             if (! Storage::disk($this->disk)->put($finalPath, $contents)) {
-                throw new Exception("Failed to store backup to S3 disk '{$this->disk}'");
+                throw new Exception("Failed to store backup to '{$this->disk}' disk");
             }
+
+            // Store record on file
+            $this->createFileRecord(
+                backupLog: $backupLog,
+                filename: $filename,
+                path: $finalPath,
+                sizeBytes: filesize($temporaryFilePath),
+            );
 
             return $finalPath;
         } catch (Exception $e) {
-            throw new Exception('S3 destination failed: '.$e->getMessage());
+            if (Storage::disk($this->disk)->exists($finalPath)) {
+                Storage::disk($this->disk)->delete($finalPath);
+            }
+
+            throw new Exception("{$this->disk} destination failed: {$e->getMessage()}");
         }
     }
 

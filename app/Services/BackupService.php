@@ -319,7 +319,8 @@ class BackupService implements BackupServiceInterface
 
     private function createZipArchive(array $files, TemporaryDirectory $temporaryDirectory, string $databaseName): string
     {
-        $zipPath = $temporaryDirectory->path($databaseName.'_backup.zip');
+        $filename = $databaseName.'_'.now()->format('YmdHis').'.zip';
+        $zipPath = $temporaryDirectory->path($filename);
         $zip = new ZipArchive;
 
         $result = $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
