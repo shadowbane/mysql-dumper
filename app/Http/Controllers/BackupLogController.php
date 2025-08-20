@@ -63,8 +63,9 @@ class BackupLogController extends Controller
         }
 
         // Sorting
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortDirection = $request->get('sort_direction', 'desc');
+        $sortBy = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+
         $query->orderBy($sortBy, $sortDirection);
 
         // Pagination
