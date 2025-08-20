@@ -59,10 +59,6 @@ class BackupLog extends Model
         ];
     }
 
-    protected $appends = [
-        'human_size',
-    ];
-
     /**
      * @return BelongsTo
      */

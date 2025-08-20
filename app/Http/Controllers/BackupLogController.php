@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BackupLog;
 use App\Models\DataSource;
+use App\Models\File;
 use Exception;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Builder;
@@ -96,7 +97,9 @@ class BackupLogController extends Controller
      */
     public function show(Request $request, BackupLog $backupLog): Response
     {
-        $backupLog->load(['dataSource', 'timelines']);
+        $backupLog->load(['dataSource', 'timelines', 'files' => function ($query) {
+            $query->whereNull('deleted_at');
+        }]);
 
         // Add computed attributes
         $backupLog->human_size = $backupLog->human_size;
@@ -197,6 +200,100 @@ class BackupLogController extends Controller
             ]);
 
             return back()->withErrors(['message' => 'Failed to delete backup file: '.$e->getMessage()]);
+        }
+    }
+
+    /**
+     * Download a specific backup file.
+     *
+     * @param  Request  $request
+     * @param  BackupLog  $backupLog
+     * @param  File  $file
+     * @return StreamedResponse
+     */
+    public function downloadFile(Request $request, BackupLog $backupLog, File $file): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        // Verify the file belongs to this backup log
+        if ($file->fileable_id !== $backupLog->id || $file->fileable_type !== BackupLog::class) {
+            abort(403, 'File does not belong to this backup log.');
+        }
+
+        if ($file->deleted_at) {
+            abort(404, 'File has been deleted.');
+        }
+
+        try {
+            $disk = Storage::disk($file->disk);
+
+            if (! $disk->exists($file->path)) {
+                abort(404, 'File not found on storage.');
+            }
+
+            return $disk->download($file->path, $file->filename);
+
+        } catch (Exception $e) {
+            abort(500, 'Error downloading file: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Delete a specific backup file.
+     *
+     * @param  Request  $request
+     * @param  BackupLog  $backupLog
+     * @param  File  $file
+     * @return RedirectResponse
+     */
+    public function deleteIndividualFile(Request $request, BackupLog $backupLog, File $file): RedirectResponse
+    {
+        // Verify the file belongs to this backup log
+        if ($file->fileable_id !== $backupLog->id || $file->fileable_type !== BackupLog::class) {
+            abort(403, 'File does not belong to this backup log.');
+        }
+
+        if ($file->deleted_at) {
+            return back()->withErrors(['message' => 'File is already deleted.']);
+        }
+
+        try {
+            $lockName = "backup-file-delete-lock-{$file->id}";
+
+            return $this->executeStoreWithLock($lockName, function () use ($file) {
+                try {
+                    DB::beginTransaction();
+
+                    // Delete file from storage
+                    $disk = Storage::disk($file->disk);
+                    if ($disk->exists($file->path)) {
+                        $disk->delete($file->path);
+                    }
+
+                    // Soft delete the file record
+                    $file->delete();
+
+                    DB::commit();
+
+                    return back()->with('success', 'Backup file deleted successfully.');
+
+                } catch (Exception $e) {
+                    DB::rollBack();
+                    throw $e;
+                }
+            });
+        } catch (LockTimeoutException $e) {
+            logger()->error("Failed acquire lock when deleting individual file: {$e->getMessage()}", [
+                'exception' => $e,
+                'file_id' => $file->id,
+            ]);
+
+            return back()->withErrors(['message' => 'Failed to acquire lock. Please try again later.']);
+        } catch (\Throwable $e) {
+            logger()->error("Failed to delete individual file ID {$file->id}: {$e->getMessage()}", [
+                'exception' => $e,
+                'file_id' => $file->id,
+            ]);
+
+            return back()->withErrors(['message' => 'Failed to delete file: '.$e->getMessage()]);
         }
     }
 }

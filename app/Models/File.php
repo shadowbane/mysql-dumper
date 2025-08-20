@@ -34,14 +34,21 @@ class File extends Model
     ];
 
     /**
-     * The attributes that should be cast.
+     * Get the attributes that should be cast.
      *
-     * @var array<string, string>
+     * @return array<string, string>
      */
-    protected $casts = [
-        'ordering' => 'integer',
-        'size_bytes' => 'integer',
-        'is_public' => 'boolean',
+    protected function casts(): array
+    {
+        return [
+            'ordering' => 'integer',
+            'size_bytes' => 'integer',
+            'is_public' => 'boolean',
+        ];
+    }
+
+    protected $appends = [
+        'human_size',
     ];
 
     /**

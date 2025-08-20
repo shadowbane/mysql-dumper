@@ -1,17 +1,13 @@
 import { BaseModel } from "@/types/base-model";
 import { BackupLogTimeline } from './backup-log-timeline';
 import { DataSource } from './datasource';
+import { File } from './file';
 
 export interface BackupLog extends BaseModel {
     data_source_id: string;
     schedule_id: string | null;
-    status: 'Pending' | 'Running' | 'Completed' | 'Failed';
+    status: 'Pending' | 'Running' | 'Completed' | 'Failed' | 'BackupReady' | 'StoringToDestinations' | 'PartiallyFailed';
     type: 'Automated' | 'Manual';
-    disk: string | null;
-    filename: string | null;
-    file_path: string | null;
-    file_size: number | null;
-    file_deleted_at: string | null;
     warnings: string[] | null;
     errors: string[] | null;
     metadata: Record<string, any> | null;
@@ -26,4 +22,5 @@ export interface BackupLog extends BaseModel {
     // Relationships
     data_source?: DataSource;
     timelines?: BackupLogTimeline[];
+    files?: File[];
 }

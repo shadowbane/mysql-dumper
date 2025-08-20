@@ -1,5 +1,6 @@
 import {Head, Link, router} from '@inertiajs/react';
 import {BackupLog} from '@/types/backup-log';
+import {File} from '@/types/file';
 import {ArrowLeft, Download, Trash2, Database, Clock, HardDrive, AlertTriangle, CheckCircle} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
@@ -27,6 +28,7 @@ interface Props {
 export default function BackupLogShow({backupLog}: Props) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [fileToDelete, setFileToDelete] = useState<File | null>(null);
 
     const downloadBackup = async () => {
         try {
@@ -38,6 +40,21 @@ export default function BackupLogShow({backupLog}: Props) {
         }
     };
 
+    const downloadIndividualFile = async (file: File) => {
+        try {
+            window.open(route('backup-logs.files.download', {backup_log: backupLog.id, file: file.id}), '_blank');
+        } catch (error: any) {
+            toast.error("Download error", {
+                description: "An error occurred while downloading the backup file.",
+            });
+        }
+    };
+
+    const openIndividualDeleteDialog = (file: File) => {
+        setFileToDelete(file);
+        setDeleteDialogOpen(true);
+    };
+
     const openDeleteDialog = () => {
         setDeleteDialogOpen(true);
     };
@@ -45,11 +62,14 @@ export default function BackupLogShow({backupLog}: Props) {
     const closeDeleteDialog = () => {
         setDeleteDialogOpen(false);
         setIsDeleting(false);
+        setFileToDelete(null);
     };
 
     const confirmDeleteBackupFile = () => {
+        if (!fileToDelete) return;
+
         setIsDeleting(true);
-        router.delete(route('backup-logs.delete-file', {backup_log: backupLog.id}), {
+        router.delete(route('backup-logs.files.delete', {backup_log: backupLog.id, file: fileToDelete.id}), {
             preserveScroll: true,
             onError: (errors: any) => {
                 const errorMessage = errors?.message || errors?.error || errors?.[0] || 'An error occurred while deleting the backup file.';
@@ -60,11 +80,11 @@ export default function BackupLogShow({backupLog}: Props) {
             },
             onSuccess: () => {
                 toast.success("File deleted", {
-                    description: "Backup file deleted successfully. Log entry preserved.",
+                    description: "Backup file deleted successfully.",
                 });
                 closeDeleteDialog();
-                // Navigate back to backup logs index
-                router.visit(route('backup-logs.index'));
+                // Reload the page to reflect changes
+                router.reload({only: ['backupLog']});
             }
         });
     };
@@ -130,23 +150,32 @@ export default function BackupLogShow({backupLog}: Props) {
                         <div>
                             <h1 className="text-2xl font-bold">Backup Details</h1>
                             <p className="text-muted-foreground">
-                                {backupLog.data_source?.name} - {format(backupLog.created_at, 'd MMMM Y')}, {formatShortDate(backupLog.created_at)}
+                                {backupLog.data_source?.name} - {format(backupLog.created_at, 'd MMMM y')}, {formatShortDate(backupLog.created_at)}
                             </p>
                         </div>
                         <div className="flex gap-2">
-                            {backupLog.is_file_available && (
+                            {backupLog.files && backupLog.files.length > 0 && (
                                 <>
-                                    <Button onClick={downloadBackup}>
-                                        <Download className="h-4 w-4 mr-2"/>
-                                        Download
-                                    </Button>
-                                    <Button
-                                        variant="destructive"
-                                        onClick={openDeleteDialog}
-                                    >
-                                        <Trash2 className="h-4 w-4 mr-2"/>
-                                        Delete File
-                                    </Button>
+                                    {backupLog.files.length === 1 && (
+                                        <>
+                                            <Button onClick={() => downloadIndividualFile(backupLog.files![0])}>
+                                                <Download className="h-4 w-4 mr-2"/>
+                                                Download
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                onClick={() => openIndividualDeleteDialog(backupLog.files![0])}
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2"/>
+                                                Delete File
+                                            </Button>
+                                        </>
+                                    )}
+                                    {backupLog.files.length > 1 && (
+                                        <p className="text-sm text-muted-foreground">
+                                            Multiple files available (see Files section below)
+                                        </p>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -185,30 +214,16 @@ export default function BackupLogShow({backupLog}: Props) {
                                             <p className="text-sm">{backupLog.human_duration || 'N/A'}</p>
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-muted-foreground">File Status</p>
-                                            <Badge variant={backupLog.file_deleted_at ? 'destructive' : 'default'}>
-                                                {backupLog.file_deleted_at ? 'Deleted' : 'Available'}
+                                            <p className="text-sm font-medium text-muted-foreground">Files Count</p>
+                                            <p className="text-sm">{backupLog.files?.length || 0} file(s)</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-muted-foreground">Files Status</p>
+                                            <Badge variant={backupLog.files && backupLog.files.length > 0 ? 'default' : 'secondary'}>
+                                                {backupLog.files && backupLog.files.length > 0 ? 'Available' : 'No files'}
                                             </Badge>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-muted-foreground">Storage Disk</p>
-                                            <p className="text-sm">{backupLog.disk || 'local'}</p>
-                                        </div>
                                     </div>
-
-                                    {backupLog.filename && (
-                                        <div>
-                                            <p className="text-sm font-medium text-muted-foreground">Filename</p>
-                                            <p className="text-sm font-mono">{backupLog.filename}</p>
-                                        </div>
-                                    )}
-
-                                    {backupLog.file_path && (
-                                        <div>
-                                            <p className="text-sm font-medium text-muted-foreground">File Path</p>
-                                            <p className="text-sm font-mono">{backupLog.file_path}</p>
-                                        </div>
-                                    )}
                                 </CardContent>
                             </Card>
 
@@ -237,7 +252,7 @@ export default function BackupLogShow({backupLog}: Props) {
                                                                 {timeline.status}
                                                             </Badge>
                                                             <span className="text-sm text-muted-foreground">
-                                                                {format(timeline.created_at, 'd MMMM Y')}, {formatShortDate(timeline.created_at)}
+                                                                {format(timeline.created_at, 'd MMMM y')}, {formatShortDate(timeline.created_at)}
                                                             </span>
                                                             {timeline.human_duration_from_previous && (
                                                                 <span className="text-xs text-muted-foreground">
@@ -250,6 +265,58 @@ export default function BackupLogShow({backupLog}: Props) {
                                                                 {JSON.stringify(timeline.metadata, null, 2)}
                                                             </div>
                                                         )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Files */}
+                            {backupLog.files && backupLog.files.length > 0 && (
+                                <Card className="mt-6">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <HardDrive className="h-5 w-5"/>
+                                            Backup Files ({backupLog.files.length})
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-4">
+                                            {backupLog.files.map((file) => (
+                                                <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="text-sm font-medium truncate">{file.filename}</p>
+                                                            <Badge variant="outline" className="text-xs">
+                                                                {file.disk || 'local'}
+                                                            </Badge>
+                                                        </div>
+                                                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                                            <span>{file.human_size || 'Unknown size'}</span>
+                                                        </div>
+                                                        {file.path && (
+                                                            <p className="text-xs text-muted-foreground font-mono mt-1 truncate">
+                                                                {file.path}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 ml-4">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => downloadIndividualFile(file)}
+                                                        >
+                                                            <Download className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => openIndividualDeleteDialog(file)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -350,9 +417,11 @@ export default function BackupLogShow({backupLog}: Props) {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Backup File</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Are you sure you want to delete this backup file? The log entry will be preserved but the file will be permanently deleted.
-                            {'\n\n'}Data Source: {backupLog.data_source?.name}
+                        <AlertDialogDescription className="whitespace-pre-wrap">
+                            Are you sure you want to delete this backup file? The file will be permanently deleted.
+                            {'\n'}Data Source: {backupLog.data_source?.name}
+                            {'\n'}Disk: {fileToDelete?.disk}
+                            {fileToDelete && `\nFile: ${fileToDelete.path}`}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

@@ -59,5 +59,11 @@ Route::middleware('auth')->group(function () {
             ->name('delete-file');
         Route::get('{backup_log}/download', [BackupLogController::class, 'download'])
             ->name('download');
+
+        // Individual file operations
+        Route::get('{backup_log}/files/{file}/download', [BackupLogController::class, 'downloadFile'])
+            ->name('files.download');
+        Route::delete('{backup_log}/files/{file}', [BackupLogController::class, 'deleteIndividualFile'])
+            ->name('files.delete');
     });
 });
