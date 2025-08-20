@@ -127,14 +127,14 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
     };
 
     const renderFileStatus = (_value: any, row: BackupLog) => {
-        if (row.file_deleted_at) {
+        if (row.files?.length === 0 && row.status === 'Completed') {
             return 'Deleted';
         }
         return row.is_file_available ? 'Available' : 'N/A';
     };
 
     const getFileStatusVariant = (row: BackupLog) => {
-        if (row.file_deleted_at) {
+        if (row.files?.length === 0 && row.status === 'Completed') {
             return 'destructive';
         }
         return row.is_file_available ? 'default' : 'secondary';

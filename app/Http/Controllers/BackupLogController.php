@@ -26,7 +26,7 @@ class BackupLogController extends Controller
      */
     public function index(Request $request): Response
     {
-        $query = BackupLog::with(['dataSource', 'timelines'])
+        $query = BackupLog::with(['dataSource', 'timelines', 'files'])
             ->select('backup_logs.*');
 
         // Search
