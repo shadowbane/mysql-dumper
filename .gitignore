@@ -26,3 +26,7 @@ Thumbs.db
 .gemini-clipboard/*
 Gemini.md
 CLAUDE.md
+
+**/caddy
+frankenphp
+frankenphp-worker.php

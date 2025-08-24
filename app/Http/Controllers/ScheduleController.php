@@ -53,7 +53,7 @@ class ScheduleController extends Controller
         $sortBy = $request->get('sort', 'name');
         $direction = $request->get('direction', 'asc');
 
-        if (in_array($sortBy, ['name', 'hour', 'is_active', 'created_at', 'last_run_at'])) {
+        if (in_array($sortBy, ['name', 'hour', 'minute', 'is_active', 'created_at', 'last_run_at'])) {
             $query->orderBy($sortBy, $direction);
         } else {
             $query->orderBy('name', 'asc');

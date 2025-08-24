@@ -14,6 +14,11 @@ export const scheduleSchema = z.object({
         .min(0, 'Hour must be between 0 and 23')
         .max(23, 'Hour must be between 0 and 23'),
     
+    minute: z.number()
+        .int('Minute must be an integer')
+        .min(0, 'Minute must be between 0 and 59')
+        .max(59, 'Minute must be between 0 and 59'),
+    
     days_of_week: z.array(z.number().int().min(1).max(7))
         .min(1, 'At least one day must be selected')
         .refine((days) => {

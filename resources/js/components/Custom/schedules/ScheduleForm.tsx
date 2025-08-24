@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
@@ -47,21 +47,93 @@ const daysOfWeek = [
 
 const hours = Array.from({ length: 24 }, (_, i) => ({
     value: i,
-    label: `${i.toString().padStart(2, '0')}:00`,
+    label: `${i.toString().padStart(2, '0')}`,
 }));
 
+const minutes = Array.from({ length: 60 }, (_, i) => ({
+    value: i,
+    label: `${i.toString().padStart(2, '0')}`,
+}));
+
+function convertLocalToUTC(localHour: number, localMinute: number): { hour: number; minute: number } {
+    const now = new Date();
+    const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), localHour, localMinute, 0);
+    return {
+        hour: localDate.getUTCHours(),
+        minute: localDate.getUTCMinutes()
+    };
+}
+
+function convertUTCToLocal(utcHour: number, utcMinute: number): { hour: number; minute: number } {
+    const now = new Date();
+    const utcDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), utcHour, utcMinute, 0));
+    return {
+        hour: utcDate.getHours(),
+        minute: utcDate.getMinutes()
+    };
+}
+
+function getTimezoneOffset(): string {
+    const offset = new Date().getTimezoneOffset();
+    const hours = Math.floor(Math.abs(offset) / 60);
+    const minutes = Math.abs(offset) % 60;
+    const sign = offset <= 0 ? '+' : '-';
+    return `UTC${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
+function getTimezoneName(): string {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 export default function ScheduleForm({ schedule, dataSources, onSubmit, isEditing = false }: ScheduleFormProps) {
+    // Initialize with proper values immediately
+    const getInitialTimes = () => {
+        if (schedule) {
+            const currentUtcHour = schedule.hour ?? 0;
+            const currentUtcMinute = schedule.minute ?? 0;
+            const currentLocalTime = convertUTCToLocal(currentUtcHour, currentUtcMinute);
+            return {
+                localTime: currentLocalTime,
+                utcTime: { hour: currentUtcHour, minute: currentUtcMinute }
+            };
+        } else {
+            const now = new Date();
+            const currentLocalTime = { hour: 0, minute: 0 };
+            const currentUtcTime = convertLocalToUTC(currentLocalTime.hour, currentLocalTime.minute);
+            return {
+                localTime: currentLocalTime,
+                utcTime: currentUtcTime
+            };
+        }
+    };
+
+    const initialTimes = getInitialTimes();
+    const [localTime, setLocalTime] = useState<{ hour: number; minute: number }>(initialTimes.localTime);
+    const [utcTime, setUtcTime] = useState<{ hour: number; minute: number }>(initialTimes.utcTime);
+
     const form = useForm<ScheduleFormData>({
         resolver: zodResolver(scheduleSchema),
         defaultValues: {
             name: schedule?.name || '',
             description: schedule?.description || '',
             hour: schedule?.hour || 0,
+            minute: schedule?.minute || 0,
             days_of_week: schedule?.days_of_week || [],
             data_source_ids: schedule?.data_sources?.map(ds => ds.id!) || [],
             is_active: schedule?.is_active ?? true,
         },
     });
+
+    const handleLocalTimeChange = (newLocalHour: number, newLocalMinute: number) => {
+        const newLocalTime = { hour: newLocalHour, minute: newLocalMinute };
+        setLocalTime(newLocalTime);
+
+        const newUtcTime = convertLocalToUTC(newLocalHour, newLocalMinute);
+        setUtcTime(newUtcTime);
+
+        form.setValue('hour', newUtcTime.hour);
+        form.setValue('minute', newUtcTime.minute);
+    };
 
     const handleSubmit = (data: ScheduleFormData) => {
         onSubmit(data);
@@ -85,9 +157,9 @@ export default function ScheduleForm({ schedule, dataSources, onSubmit, isEditin
                                 <FormItem>
                                     <FormLabel>Schedule Name</FormLabel>
                                     <FormControl>
-                                        <Input 
-                                            placeholder="e.g., Daily Backup, Weekly Archive" 
-                                            {...field} 
+                                        <Input
+                                            placeholder="e.g., Daily Backup, Weekly Archive"
+                                            {...field}
                                         />
                                     </FormControl>
                                     <FormDescription>
@@ -105,10 +177,10 @@ export default function ScheduleForm({ schedule, dataSources, onSubmit, isEditin
                                 <FormItem>
                                     <FormLabel>Description (Optional)</FormLabel>
                                     <FormControl>
-                                        <Textarea 
+                                        <Textarea
                                             placeholder="Optional description of this backup schedule..."
                                             rows={3}
-                                            {...field} 
+                                            {...field}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -149,36 +221,76 @@ export default function ScheduleForm({ schedule, dataSources, onSubmit, isEditin
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="hour"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Time (UTC)</FormLabel>
-                                    <Select 
-                                        onValueChange={(value) => field.onChange(parseInt(value))} 
-                                        defaultValue={field.value.toString()}
-                                    >
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select time" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {hours.map((hour) => (
-                                                <SelectItem key={hour.value} value={hour.value.toString()}>
-                                                    {hour.label} UTC
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormDescription>
-                                        Time is stored and runs in UTC. Convert your local time to UTC.
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <FormItem>
+                            <FormLabel>Backup Time</FormLabel>
+                            <div className="flex gap-0.5">
+                                <FormField
+                                    control={form.control}
+                                    name="hour"
+                                    render={() => (
+                                        <Select
+                                            onValueChange={(value) => handleLocalTimeChange(parseInt(value), localTime.minute)}
+                                            value={localTime.hour.toString()}
+                                        >
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Hour" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {hours.map((hour) => (
+                                                    <SelectItem key={hour.value} value={hour.value.toString()}>
+                                                        {hour.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="minute"
+                                    render={() => (
+                                        <Select
+                                            onValueChange={(value) => handleLocalTimeChange(localTime.hour, parseInt(value))}
+                                            value={localTime.minute.toString()}
+                                        >
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Minute" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {minutes.map((minute) => (
+                                                    <SelectItem key={minute.value} value={minute.value.toString()}>
+                                                        {minute.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                            </div>
+                            <FormDescription>
+                                Time in your browser timezone ({getTimezoneOffset()})
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+
+                        <FormItem>
+                            <FormLabel>UTC Time (stored value)</FormLabel>
+                            <FormControl>
+                                <Input
+                                    value={isNaN(utcTime.hour) || isNaN(utcTime.minute) ? '--:-- UTC' : `${utcTime.hour.toString().padStart(2, '0')}:${utcTime.minute.toString().padStart(2, '0')} UTC`}
+                                    disabled
+                                    className="bg-muted"
+                                />
+                            </FormControl>
+                            <FormDescription>
+                                This UTC time will be stored and used for scheduling
+                            </FormDescription>
+                        </FormItem>
 
                         <FormField
                             control={form.control}

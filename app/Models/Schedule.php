@@ -15,6 +15,7 @@ class Schedule extends Model
         'name',
         'description',
         'hour',
+        'minute',
         'days_of_week',
         'is_active',
         'last_run_at',
@@ -31,6 +32,7 @@ class Schedule extends Model
             'days_of_week' => 'array',
             'is_active' => 'boolean',
             'hour' => 'integer',
+            'minute' => 'integer',
             'last_run_at' => 'datetime',
         ];
     }
@@ -91,9 +93,11 @@ class Schedule extends Model
             return false;
         }
 
-        $currentHour = now()->hour;
+        $now = now();
+        $currentHour = $now->hour;
+        $currentMinute = $now->minute;
 
-        return $currentHour === $this->hour;
+        return $currentHour === $this->hour && $currentMinute === ($this->minute ?? 0);
     }
 
     /**
@@ -139,7 +143,7 @@ class Schedule extends Model
      */
     public function getHumanTimeAttribute(): string
     {
-        return sprintf('%02d:00 UTC', $this->hour);
+        return sprintf('%02d:%02d UTC', $this->hour, $this->minute ?? 0);
     }
 
     /**
@@ -165,10 +169,15 @@ class Schedule extends Model
 
         $now = now();
 
-        // Try today first if the hour hasn't passed
+        // Try today first if the time hasn't passed
         $todayAdjusted = $now->dayOfWeek === 0 ? 7 : $now->dayOfWeek;
-        if (in_array($todayAdjusted, $this->days_of_week) && $now->hour < $this->hour) {
-            return $now->copy()->hour($this->hour)->minute(0)->second(0);
+        $scheduleMinute = $this->minute ?? 0;
+
+        if (in_array($todayAdjusted, $this->days_of_week)) {
+            $todayScheduleTime = $now->copy()->hour($this->hour)->minute($scheduleMinute)->second(0);
+            if ($now->lt($todayScheduleTime)) {
+                return $todayScheduleTime;
+            }
         }
 
         // Find the next day this schedule should run
@@ -177,7 +186,7 @@ class Schedule extends Model
             $checkDay = $checkDate->dayOfWeek === 0 ? 7 : $checkDate->dayOfWeek;
 
             if (in_array($checkDay, $this->days_of_week)) {
-                return $checkDate->hour($this->hour)->minute(0)->second(0);
+                return $checkDate->hour($this->hour)->minute($this->minute ?? 0)->second(0);
             }
         }
 
