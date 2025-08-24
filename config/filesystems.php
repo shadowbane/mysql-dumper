@@ -60,6 +60,16 @@ return [
             'report' => false,
         ],
 
+        'sftp' => [
+            'driver' => 'sftp',
+            'host' => env('SFTP_HOST'),
+            'username' => env('SFTP_USERNAME'),
+            'password' => env('SFTP_PASSWORD'),
+            'privateKey' => file_get_contents(storage_path(env('SFTP_PRIVATE_KEY'))),
+            'root' => env('SFTP_ROOT', '/backups'),
+            'timeout' => 30,
+        ],
+
     ],
 
     /*
