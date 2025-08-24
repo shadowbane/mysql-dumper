@@ -14,6 +14,7 @@
         "genealabs/laravel-model-caching": "^12.0",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/framework": "^12.0",
+        "laravel/octane": "^2.12",
         "laravel/tinker": "^2.10.1",
         "league/flysystem-aws-s3-v3": "^3.29",
         "league/flysystem-sftp-v3": "^3.30",
