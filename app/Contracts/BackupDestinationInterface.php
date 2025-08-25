@@ -43,9 +43,9 @@ interface BackupDestinationInterface
      * Serve a file from storage for the user to download.
      *
      * @param  File  $file
-     * @return StreamedResponse|string
+     * @return StreamedResponse|string|null
      */
-    public function download(File $file): StreamedResponse|string;
+    public function download(File $file): StreamedResponse|string|null;
 
     /**
      * Get the destination identifier (e.g., 's3', 'r2', 'local').

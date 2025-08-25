@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\BackupDestinationException;
 use App\Models\BackupLog;
 use App\Models\DataSource;
 use App\Models\File;
@@ -229,6 +230,10 @@ class BackupLogController extends Controller
                 ->getDestinationFromFile($file);
 
             $result = $destinationService->download($file);
+
+            if (blank($result)) {
+                throw BackupDestinationException::downloadDisabled();
+            }
 
             if (is_string($result)) {
                 return Inertia::location($result);

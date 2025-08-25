@@ -7,7 +7,6 @@ use App\Models\BackupLog;
 use App\Models\File;
 use Exception;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SftpBackupDestination implements BackupDestinationInterface
 {
@@ -111,35 +110,11 @@ class SftpBackupDestination implements BackupDestinationInterface
      * Serve a file from storage for the user to download.
      *
      * @param  File  $file
-     * @return StreamedResponse
+     * @return null
      */
-    public function download(File $file): StreamedResponse
+    public function download(File $file): null
     {
-        // Check if the file exists on the SFTP server
-        if (! Storage::disk($this->disk)->exists($file->path)) {
-            // If not, abort the request with a 404 'Not Found' error.
-            abort(404, 'File not found on SFTP server.');
-        }
-
-        // 2. Get the file's stream resource from the SFTP disk
-        $stream = Storage::disk($this->disk)->readStream($file->path);
-
-        // 3. Get the file's metadata for headers
-        $mimeType = Storage::disk($this->disk)->mimeType($file->path);
-        $size = Storage::disk($this->disk)->size($file->path);
-        $fileName = basename($file->path);
-
-        // 4. Create the headers
-        $headers = [
-            'Content-Type' => $mimeType,
-            'Content-Length' => $size,
-            'Content-Disposition' => "attachment; filename=\"{$file->filename}\"",
-        ];
-
-        // 5. Return a streamed response
-        return response()->stream(function () use ($stream) {
-            fpassthru($stream);
-        }, 200, $headers);
+        return null;
     }
 
     public function isEnabled(BackupLog $backupLog): bool

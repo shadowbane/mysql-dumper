@@ -13,4 +13,9 @@ class BackupDestinationException extends BackupException
     {
         return new self("Backup service for {$disk} does not implement interface.");
     }
+
+    public static function downloadDisabled(): self
+    {
+        return new self('Backup download disabled for this disk.');
+    }
 }

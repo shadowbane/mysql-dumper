@@ -20,6 +20,7 @@ export default function MainLayout({children}: PropsWithChildren) {
                 </div>
             </main>
             <Toaster
+                expand={true}
                 position="bottom-right"
                 toastOptions={{
                     classNames: {

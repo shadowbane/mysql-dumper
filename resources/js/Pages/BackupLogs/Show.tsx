@@ -32,6 +32,14 @@ export default function BackupLogShow({backupLog}: Props) {
 
     const downloadIndividualFile = async (file: File) => {
         try {
+            if (file.disk === 'sftp') {
+                toast.error("Download Disabled", {
+                    description: "Download backup from sftp disk is disabled"
+                });
+
+                throw new Error("Download is disabled");
+            }
+
             window.open(route('backup-logs.files.download', {backup_log: backupLog.id, file: file.id}), '_blank');
         } catch (error: any) {
             toast.error("Download error", {
@@ -188,7 +196,10 @@ export default function BackupLogShow({backupLog}: Props) {
                                 <>
                                     {backupLog.files.length === 1 && (
                                         <>
-                                            <Button onClick={() => downloadIndividualFile(backupLog.files![0])}>
+                                            <Button
+                                                onClick={() => downloadIndividualFile(backupLog.files![0])}
+                                                disabled={backupLog.files[0].disk === 'sftp'}
+                                            >
                                                 <Download className="h-4 w-4 mr-2"/>
                                                 Download
                                             </Button>
@@ -337,6 +348,7 @@ export default function BackupLogShow({backupLog}: Props) {
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => downloadIndividualFile(file)}
+                                                            disabled={file.disk === 'sftp'}
                                                         >
                                                             <Download className="h-4 w-4" />
                                                         </Button>
