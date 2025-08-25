@@ -9,7 +9,9 @@ return new class extends Migration {
     {
         Schema::create('backup_log_timelines', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('backup_log_id')->constrained()->onDelete('cascade');
+            $table->foreignUlid('backup_log_id')
+                ->constrained('backup_logs', 'id')
+                ->onDelete('cascade');
             $table->string('status'); // Use string to match BackupStatusEnum values
             $table->json('metadata')->nullable(); // Additional context for this status change
             $table->timestamps();

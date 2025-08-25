@@ -65,7 +65,7 @@ return [
             'host' => env('SFTP_HOST'),
             'username' => env('SFTP_USERNAME'),
             'password' => env('SFTP_PASSWORD'),
-            'privateKey' => file_get_contents(storage_path(env('SFTP_PRIVATE_KEY'))),
+            'privateKey' => file_exists(storage_path(env('SFTP_PRIVATE_KEY', 'app/private/mykey'))) ? file_get_contents(storage_path(env('SFTP_PRIVATE_KEY'))) : null,
             'root' => env('SFTP_ROOT', '/backups'),
             'timeout' => 30,
         ],
