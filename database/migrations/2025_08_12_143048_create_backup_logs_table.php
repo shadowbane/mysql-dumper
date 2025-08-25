@@ -15,7 +15,7 @@ return new class extends Migration {
             $table->foreignUlid('data_source_id')
                 ->constrained('data_sources', 'id')
                 ->restrictOnDelete();
-            $table->char('status', 10)
+            $table->char('status', 30)
                 ->comment("available: 'pending', 'running', 'completed', 'failed'");
             $table->char('type', 10)
                 ->comment("type of backup: 'manual', 'automated'");
