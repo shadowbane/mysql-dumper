@@ -7,7 +7,6 @@ use App\Models\BackupLog;
 use App\Models\File;
 use Exception;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class S3BackupDestination implements BackupDestinationInterface
 {
@@ -111,9 +110,9 @@ class S3BackupDestination implements BackupDestinationInterface
      * Serve a file from storage for the user to download.
      *
      * @param  File  $file
-     * @return StreamedResponse
+     * @return string
      */
-    public function download(File $file): StreamedResponse
+    public function download(File $file): string
     {
         // Check if the file exists on the specified disk.
         if (! Storage::disk($this->disk)->exists($file->path)) {
@@ -121,10 +120,8 @@ class S3BackupDestination implements BackupDestinationInterface
             abort(404, 'File not found.');
         }
 
-        // Return the download response.
-        // The second argument is the filename the user will see.
-        // The third argument is for custom headers (optional).
-        return Storage::disk($this->disk)->download($file->path, $file->name);
+        return Storage::disk($this->disk)
+            ->temporaryUrl($file->path, now()->addHours(3));
     }
 
     public function isEnabled(BackupLog $backupLog): bool

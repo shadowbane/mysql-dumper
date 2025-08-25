@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BackupLog;
 use App\Models\DataSource;
 use App\Models\File;
+use App\Services\BackupDestinationService;
 use Exception;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Builder;
@@ -127,7 +128,7 @@ class BackupLogController extends Controller
      * @param  BackupLog  $backupLog
      * @return StreamedResponse
      */
-    public function download(Request $request, BackupLog $backupLog): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function download(Request $request, BackupLog $backupLog): StreamedResponse
     {
         if (! $backupLog->isFileAvailable()) {
             abort(404, 'Backup file not found or has been deleted.');
@@ -210,9 +211,9 @@ class BackupLogController extends Controller
      * @param  Request  $request
      * @param  BackupLog  $backupLog
      * @param  File  $file
-     * @return StreamedResponse
+     * @return StreamedResponse|\Symfony\Component\HttpFoundation\Response
      */
-    public function downloadFile(Request $request, BackupLog $backupLog, File $file): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function downloadFile(Request $request, BackupLog $backupLog, File $file): StreamedResponse|\Symfony\Component\HttpFoundation\Response
     {
         // Verify the file belongs to this backup log
         if ($file->fileable_id !== $backupLog->id || $file->fileable_type !== BackupLog::class) {
@@ -224,14 +225,20 @@ class BackupLogController extends Controller
         }
 
         try {
-            $disk = Storage::disk($file->disk);
+            $destinationService = app(BackupDestinationService::class)
+                ->getDestinationFromFile($file);
 
-            if (! $disk->exists($file->path)) {
-                abort(404, 'File not found on storage.');
+            $result = $destinationService->download($file);
+
+            if (is_string($result)) {
+                return Inertia::location($result);
             }
 
-            return $disk->download($file->path, $file->filename);
+            if ($result instanceof StreamedResponse) {
+                return $result;
+            }
 
+            throw new \Exception('Unhandled response');
         } catch (Exception $e) {
             abort(500, 'Error downloading file: '.$e->getMessage());
         }
@@ -263,14 +270,11 @@ class BackupLogController extends Controller
                 try {
                     DB::beginTransaction();
 
-                    // Delete file from storage
-                    $disk = Storage::disk($file->disk);
-                    if ($disk->exists($file->path)) {
-                        $disk->delete($file->path);
-                    }
+                    $destinationService = app(BackupDestinationService::class)
+                        ->getDestinationFromFile($file);
 
-                    // Soft delete the file record
-                    $file->delete();
+                    // Delete file from storage
+                    $destinationService->deleteFileRecord($file);
 
                     DB::commit();
 

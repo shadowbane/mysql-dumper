@@ -121,10 +121,25 @@ class SftpBackupDestination implements BackupDestinationInterface
             abort(404, 'File not found on SFTP server.');
         }
 
-        // Return the download response.
-        // The second argument is the filename the user will see.
-        // The third argument is for custom headers (optional).
-        return Storage::disk($this->disk)->download($file->path, $file->filename);
+        // 2. Get the file's stream resource from the SFTP disk
+        $stream = Storage::disk($this->disk)->readStream($file->path);
+
+        // 3. Get the file's metadata for headers
+        $mimeType = Storage::disk($this->disk)->mimeType($file->path);
+        $size = Storage::disk($this->disk)->size($file->path);
+        $fileName = basename($file->path);
+
+        // 4. Create the headers
+        $headers = [
+            'Content-Type' => $mimeType,
+            'Content-Length' => $size,
+            'Content-Disposition' => "attachment; filename=\"{$file->filename}\"",
+        ];
+
+        // 5. Return a streamed response
+        return response()->stream(function () use ($stream) {
+            fpassthru($stream);
+        }, 200, $headers);
     }
 
     public function isEnabled(BackupLog $backupLog): bool

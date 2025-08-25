@@ -16,5 +16,8 @@ php artisan optimize
 chown -R www-data:www-data /app/storage /app/bootstrap/cache \
     && chmod -R 755 /app/storage
 
-#php artisan octane:frankenphp --max-requests=200 --https --http-redirect
-php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80 --caddyfile=./docker/caddyfile
+# Octane
+#php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=80 --admin-port=2019 --caddyfile=./docker/caddyfile
+
+# Default Config
+/usr/local/bin/docker-php-entrypoint --config /etc/caddy/Caddyfile --adapter caddyfile

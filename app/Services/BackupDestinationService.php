@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Contracts\BackupDestinationInterface;
+use App\Exceptions\BackupDestinationException;
 use App\Models\BackupLog;
+use App\Models\File;
 use Exception;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Collection;
 
 class BackupDestinationService
 {
@@ -61,30 +63,74 @@ class BackupDestinationService
      */
     private function registerDestinations(): void
     {
-        $enabledDestinations = Config::get('database-backup.destinations.enabled', []);
+        $enabledDestinations = $this->getConfig();
 
         foreach ($enabledDestinations as $destinationConfig) {
             try {
-                $destinationClass = $destinationConfig['class'];
-                if (! class_exists($destinationClass)) {
-                    continue;
-                }
-
-                // Check if the class implements the interface
-                if (! in_array(BackupDestinationInterface::class, class_implements($destinationClass) ?: [])) {
-                    continue;
-                }
-
-                // Instantiate the destination class
-                $destination = new $destinationClass($destinationConfig['disk'], $destinationConfig['path'] ?? '/');
+                $destination = $this->initializeDestinationService($destinationConfig);
                 $this->register($destination);
+            } catch (BackupDestinationException $e) {
+                logger()->error($e->getMessage());
 
+                continue;
             } catch (Exception $e) {
                 // Log error and continue with other destinations
-                logger()->warning("Failed to register backup destination: {$destinationClass}", [
+                logger()->warning("Failed to register backup destination: {$destinationConfig['disk']}", [
                     'error' => $e->getMessage(),
                 ]);
             }
         }
+    }
+
+    /**
+     * @param  File  $backupFile
+     *
+     * @throws BackupDestinationException
+     *
+     * @return BackupDestinationInterface|null
+     */
+    public function getDestinationFromFile(File $backupFile): ?BackupDestinationInterface
+    {
+        $disk = $backupFile->disk;
+        $destinationConfig = $this->getConfig()
+            ->where('disk', $disk)
+            ->first();
+
+        if (! $destinationConfig) {
+            throw new \Exception("Backup disk {$disk} not found. Is it enabled?");
+        }
+
+        return $this->initializeDestinationService($destinationConfig);
+    }
+
+    /**
+     * @return Collection
+     */
+    private function getConfig(): Collection
+    {
+        return collect(config('database-backup.destinations', []));
+    }
+
+    /**
+     * @param  $destinationConfig
+     *
+     * @throws BackupDestinationException
+     *
+     * @return BackupDestinationInterface
+     */
+    private function initializeDestinationService($destinationConfig): BackupDestinationInterface
+    {
+        $destinationClass = $destinationConfig['class'];
+        if (! class_exists($destinationClass)) {
+            throw BackupDestinationException::configIsMissingClass($destinationConfig['disk']);
+        }
+
+        // Check if the class implements the interface
+        if (! in_array(BackupDestinationInterface::class, class_implements($destinationClass) ?: [])) {
+            throw BackupDestinationException::serviceDoesNotImplementInterface($destinationConfig['disk']);
+        }
+
+        // Instantiate the destination class
+        return new $destinationClass($destinationConfig['disk'], $destinationConfig['path'] ?? '/');
     }
 }
