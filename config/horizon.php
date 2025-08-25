@@ -182,7 +182,7 @@ return [
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
-            'queue' => ['default'],
+            'queue' => [env('REDIS_QUEUE', 'horizon')],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
@@ -198,6 +198,7 @@ return [
     'environments' => [
         'production' => [
             'supervisor-1' => [
+                'queue' => [env('REDIS_QUEUE', 'horizon')],
                 'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
@@ -209,6 +210,7 @@ return [
 
         'local' => [
             'supervisor-1' => [
+                'queue' => [env('REDIS_QUEUE', 'horizon')],
                 'maxProcesses' => 3,
                 'tries' => 3,
                 'backoff' => [1, 2, 3], // delay for 1s for first fail, 2s, then 3s
