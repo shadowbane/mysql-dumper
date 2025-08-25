@@ -25,11 +25,11 @@ return [
                 'disk' => 's3',
                 'path' => 'database-backups',
             ],
-            [
-                'class' => \App\Services\Destinations\SftpBackupDestination::class,
-                'disk' => 'sftp',
-                'path' => 'database-backups',
-            ],
+            // [
+            //     'class' => \App\Services\Destinations\SftpBackupDestination::class,
+            //     'disk' => 'sftp',
+            //     'path' => 'database-backups',
+            // ],
         ],
     ],
 ];
