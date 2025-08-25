@@ -115,7 +115,7 @@ class DashboardController extends Controller
             ->where('is_active', true)
             ->latest()
             ->take(5)
-            ->get(['id', 'name', 'host', 'latestBackupLog'])
+            ->get(['id', 'name', 'host'])
             ->map(fn(DataSource $dataSource) => [
                 'id' => $dataSource->id,
                 'name' => $dataSource->name,

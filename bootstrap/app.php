@@ -15,6 +15,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
+        $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR |
+            Request::HEADER_X_FORWARDED_HOST |
+            Request::HEADER_X_FORWARDED_PORT |
+            Request::HEADER_X_FORWARDED_PROTO |
+            Request::HEADER_X_FORWARDED_AWS_ELB
+        );
+
         $middleware->web(append: [
             HandleInertiaRequests::class,
         ]);
@@ -33,7 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             // Handle common error status codes in production
-            if (! app()->environment(['local', 'testing']) &&
+            if (!app()->environment(['local', 'testing']) &&
                 in_array($response->getStatusCode(), [403, 404, 500, 503])) {
                 return Inertia::render('ErrorPage', [
                     'status' => $response->getStatusCode(),
