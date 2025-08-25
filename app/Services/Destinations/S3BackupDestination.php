@@ -133,7 +133,7 @@ class S3BackupDestination implements BackupDestinationInterface
         try {
             $disk = Storage::disk($this->disk);
             // Try to check if the disk is accessible (this will fail if misconfigured)
-            $disk->exists('.'); // This should not throw if properly configured
+            $disk->allFiles(''); // This should not throw if properly configured
 
             return true;
         } catch (Exception) {
