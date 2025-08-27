@@ -35,8 +35,8 @@ class HandleBackupReadyEvent implements ShouldQueue
                 BackupFailedEvent::dispatch($event->backupLog, $exception);
 
                 // Clean up temporary file
-                if (file_exists($event->temporaryFilePath)) {
-                    unlink($event->temporaryFilePath);
+                if ($event->fileData->temporaryDirectory->exists()) {
+                    $event->fileData->temporaryDirectory->delete();
                 }
 
                 return;
@@ -54,17 +54,17 @@ class HandleBackupReadyEvent implements ShouldQueue
             foreach ($destinations as $destination) {
                 try {
                     $filePath = $destination->store(
-                        $event->backupLog,
-                        $event->temporaryFilePath,
-                        $event->filename,
-                        $event->metadata
+                        backupLog: $event->backupLog,
+                        temporaryFilePath: $event->fileData->fullPath,
+                        filename: $event->fileData->filename,
+                        metadata: $event->metadata
                     );
 
                     if ($filePath) {
                         $event->backupLog->recordDestinationCompletion(
-                            $destination->getDestinationId(),
-                            true,
-                            $filePath
+                            destinationId: $destination->getDestinationId(),
+                            success: true,
+                            filePath: $filePath
                         );
                         $successes++;
 
@@ -80,10 +80,10 @@ class HandleBackupReadyEvent implements ShouldQueue
                     }
                 } catch (Exception $e) {
                     $event->backupLog->recordDestinationCompletion(
-                        $destination->getDestinationId(),
-                        false,
-                        null,
-                        $e->getMessage()
+                        destinationId: $destination->getDestinationId(),
+                        success: false,
+                        filePath: null,
+                        errorMessage: $e->getMessage()
                     );
                     $failures++;
 
@@ -112,8 +112,8 @@ class HandleBackupReadyEvent implements ShouldQueue
                 // Emit backup completed event
                 BackupCompletedEvent::dispatch(
                     $event->backupLog,
-                    $event->filename,
-                    $event->fileSize,
+                    $event->fileData->filename,
+                    $event->fileData->fileSize,
                     array_merge($event->metadata, [
                         'destinations_succeeded' => $successes,
                         'destinations_failed' => $failures,
@@ -151,8 +151,8 @@ class HandleBackupReadyEvent implements ShouldQueue
             BackupFailedEvent::dispatch($event->backupLog, $e);
         } finally {
             // Clean up temporary file
-            if (file_exists($event->temporaryFilePath)) {
-                unlink($event->temporaryFilePath);
+            if ($event->fileData->temporaryDirectory->exists()) {
+                $event->fileData->temporaryDirectory->delete();
             }
         }
     }

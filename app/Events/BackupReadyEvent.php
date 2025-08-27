@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\DTO\BackupFileDTO;
 use App\Models\BackupLog;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -13,9 +14,7 @@ class BackupReadyEvent
 
     public function __construct(
         public BackupLog $backupLog,
-        public string $temporaryFilePath,
-        public string $filename,
-        public int $fileSize,
+        public BackupFileDTO $fileData,
         public array $metadata = []
     ) {}
 }

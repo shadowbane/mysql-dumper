@@ -11,13 +11,12 @@ interface BackupServiceInterface
      * Execute a database backup for the given connection.
      *
      * @param  ConnectionDTO  $connection  The database connection parameters
-     * @param  string|null  $filename  Custom filename for the backup (optional)
      *
      * @throws \App\Exceptions\BackupException
      *
-     * @return string The path to the created backup file
+     * @return \App\DTO\BackupFileDTO The path to the created backup file
      */
-    public function backup(ConnectionDTO $connection, BackupLog $backupLog, ?string $filename = null): string;
+    public function backup(ConnectionDTO $connection, BackupLog $backupLog): \App\DTO\BackupFileDTO;
 
     /**
      * Test the database connection before attempting backup.

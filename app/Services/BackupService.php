@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\BackupServiceInterface;
+use App\DTO\BackupFileDTO;
 use App\DTO\ConnectionDTO;
 use App\Events\BackupFailedEvent;
 use App\Events\BackupReadyEvent;
@@ -45,11 +46,7 @@ class BackupService implements BackupServiceInterface
             );
 
             // Perform backup
-            $temporaryFilePath = $this->backup($connectionDTO, $backupLog);
-
-            // Get file info for backup log
-            $filename = basename($temporaryFilePath);
-            $fileSize = filesize($temporaryFilePath);
+            $fileData = $this->backup($connectionDTO, $backupLog);
 
             $metadata = [
                 'database' => $dataSource->database,
@@ -64,7 +61,7 @@ class BackupService implements BackupServiceInterface
             );
 
             // Emit event for destination handlers
-            BackupReadyEvent::dispatch($backupLog, $temporaryFilePath, $filename, $fileSize, $metadata);
+            BackupReadyEvent::dispatch($backupLog, $fileData, $metadata);
 
         } catch (Exception $e) {
             // Mark backup as failed
@@ -78,19 +75,13 @@ class BackupService implements BackupServiceInterface
         }
     }
 
-    public function backup(ConnectionDTO $connection, BackupLog $backupLog, ?string $filename = null): string
+    public function backup(ConnectionDTO $connection, BackupLog $backupLog): \App\DTO\BackupFileDTO
     {
         $this->validateConnection($connection);
 
-        $temporaryDirectory = TemporaryDirectory::make();
-
+        $temporaryDirectoryPath = storage_path("app/private/temp/{$backupLog->data_source_id}");
+        $temporaryDirectory = TemporaryDirectory::make($temporaryDirectoryPath);
         try {
-            // Generate filename if not provided
-            if (! $filename) {
-                $timestamp = now()->format('Y-m-d_H-i-s');
-                $filename = "{$connection->database}_{$timestamp}.zip";
-            }
-
             // Get all tables to backup
             $tables = $this->getTablesToBackup($connection);
 
@@ -107,6 +98,24 @@ class BackupService implements BackupServiceInterface
                 $tableFiles[] = $tableFile;
             }
 
+            // Get and backup views
+            $views = $this->getViews($connection);
+            foreach ($views as $view) {
+                if (! in_array($view, $connection->skippedTables)) {
+                    try {
+                        $viewFile = $this->backupView($connection, $view, $temporaryDirectory);
+                        $tableFiles[] = $viewFile;
+                    } catch (Exception $e) {
+                        // Log view backup failure but continue
+                        $backupLog->addWarning([
+                            'message' => "Failed to backup view '{$view}'",
+                            'view' => $view,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
             // Create database structure dump (no data)
             $structureFile = $this->backupDatabaseStructure($connection, $temporaryDirectory, $backupLog);
             if ($structureFile) {
@@ -116,8 +125,10 @@ class BackupService implements BackupServiceInterface
             // Create ZIP archive and return the temporary file path
             $zipPath = $this->createZipArchive($tableFiles, $temporaryDirectory, $connection->database);
 
-            return $zipPath;
-
+            return new BackupFileDTO(
+                temporaryDirectory: $temporaryDirectory,
+                fullPath: $zipPath,
+            );
         } catch (Exception $e) {
             $temporaryDirectory->delete();
 
@@ -186,7 +197,7 @@ class BackupService implements BackupServiceInterface
             $result = DB::connection($configName)->select('
                 SELECT table_name
                 FROM information_schema.tables
-                WHERE table_schema = ?
+                WHERE table_schema = ? AND table_type = \'BASE TABLE\'
                 ORDER BY table_name
             ', [$connection->database]);
 
@@ -197,6 +208,33 @@ class BackupService implements BackupServiceInterface
         } catch (Exception $e) {
             throw BackupException::backupFailed($connection->database, $e, [
                 'operation' => 'get_tables',
+                'reason' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function getViews(ConnectionDTO $connection): array
+    {
+        try {
+            $this->validateConnection($connection);
+
+            $configName = 'temp_connection_'.uniqid();
+            Config::set("database.connections.{$configName}", $connection->getDatabaseConfig());
+
+            $result = DB::connection($configName)->select('
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = ? AND table_type = \'VIEW\'
+                ORDER BY table_name
+            ', [$connection->database]);
+
+            Config::set("database.connections.{$configName}", null);
+
+            return array_map(fn($table) => $table->TABLE_NAME, $result);
+
+        } catch (Exception $e) {
+            throw BackupException::backupFailed($connection->database, $e, [
+                'operation' => 'get_views',
                 'reason' => $e->getMessage(),
             ]);
         }
@@ -266,6 +304,46 @@ class BackupService implements BackupServiceInterface
                 'table' => $table,
                 'operation' => 'backup_table',
                 'structure_only' => $isStructureOnly ?? false,
+            ]);
+        }
+    }
+
+    private function backupView(ConnectionDTO $connection, string $view, TemporaryDirectory $temporaryDirectory): string
+    {
+        try {
+            $configName = 'temp_connection_'.uniqid();
+            Config::set("database.connections.{$configName}", $connection->getDatabaseConfig());
+
+            // Get the view definition
+            $result = DB::connection($configName)->select('SHOW CREATE VIEW `'.$view.'`');
+
+            Config::set("database.connections.{$configName}", null);
+
+            if (empty($result)) {
+                throw new Exception("Could not retrieve definition for view '{$view}'");
+            }
+
+            $viewDefinition = $result[0]->{'Create View'};
+
+            // Create the SQL content for the view
+            $sqlContent = "-- View: {$view}\n";
+            $sqlContent .= "DROP VIEW IF EXISTS `{$view}`;\n";
+            $sqlContent .= $viewDefinition.";\n";
+
+            $filename = "view_{$view}.sql";
+            $filePath = $temporaryDirectory->path($filename);
+
+            if (file_put_contents($filePath, $sqlContent) === false) {
+                throw new Exception('Failed to write view definition to file');
+            }
+
+            return $filePath;
+
+        } catch (Exception $e) {
+            throw BackupException::backupFailed($connection->database, $e, [
+                'reason' => "Failed to backup view '{$view}': ".$e->getMessage(),
+                'view' => $view,
+                'operation' => 'backup_view',
             ]);
         }
     }
