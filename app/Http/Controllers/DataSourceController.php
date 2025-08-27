@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -158,6 +159,10 @@ class DataSourceController extends Controller
                     throw $e;
                 }
             });
+        } catch (ValidationException $e) {
+            return redirect()
+                ->back()
+                ->withErrors($e->errors());
         } catch (LockTimeoutException $e) {
             logger()->error("Failed acquire lock when creating Data Source: {$e->getMessage()}", [
                 'exception' => $e,
@@ -219,6 +224,10 @@ class DataSourceController extends Controller
                     throw $e;
                 }
             });
+        } catch (ValidationException $e) {
+            return redirect()
+                ->back()
+                ->withErrors($e->errors());
         } catch (LockTimeoutException $e) {
             logger()->error("Failed acquire lock when updating Data Source: {$e->getMessage()}", [
                 'exception' => $e,
