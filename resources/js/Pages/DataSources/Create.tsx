@@ -8,7 +8,7 @@ import DataSourceForm from "@/components/Custom/data-source/DataSourceForm";
 import {toast} from 'sonner';
 import {route} from 'ziggy-js';
 
-export default function Create() {
+export default function Create(props: any) {
     const handleSubmit = (data: any) => {
         router.post('/data-sources', data, {
             onSuccess: () => {
@@ -42,7 +42,10 @@ export default function Create() {
                                 Add a new database connection for backups
                             </p>
                         </div>
-                        <DataSourceForm onSubmit={handleSubmit}/>
+                        <DataSourceForm
+                            onSubmit={handleSubmit}
+                            errors={props.errors ?? []}
+                        />
                     </div>
                 </div>
             </div>

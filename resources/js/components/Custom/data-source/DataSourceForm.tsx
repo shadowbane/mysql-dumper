@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import {
     FormLabel,
     FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Plug2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Loader2, Plug2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { DataSource } from '@/types/datasource';
 import {
@@ -32,11 +32,15 @@ interface DataSourceFormProps {
     dataSource?: DataSource;
     onSubmit: (data: DataSourceFormData | DataSourceEditFormData) => void;
     isEditing?: boolean;
+    errors?: {
+        [key: string]: string | undefined;
+    };
 }
 
-export default function DataSourceForm({ dataSource, onSubmit, isEditing = false }: DataSourceFormProps) {
+export default function DataSourceForm({ dataSource, onSubmit, isEditing = false, errors = [] }: DataSourceFormProps) {
     const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [generalErrors, setGeneralErrors] = useState<string[]>([]);
 
     const schema = isEditing ? dataSourceEditSchema : dataSourceSchema;
     const form = useForm<DataSourceFormData | DataSourceEditFormData>({
@@ -53,6 +57,37 @@ export default function DataSourceForm({ dataSource, onSubmit, isEditing = false
             structure_only: dataSource?.structure_only || '',
         },
     });
+
+    // Handle external errors (server-side validation)
+    useEffect(() => {
+        if (errors && Object.keys(errors).length > 0) {
+            const formErrors: string[] = [];
+            const fieldErrors: { [key: string]: string } = {};
+
+            for (const [key, value] of Object.entries(errors)) {
+                // Check if the key is a number (general error) or exists as a field in the form
+                if (!isNaN(Number(key))) {
+                    if (value) formErrors.push(value);
+                } else if (form.data[key as keyof typeof form.data] !== undefined) {
+                    // If the key exists in the form's values, it's a field error
+                    if (value) fieldErrors[key] = value;
+                } else {
+                    if (value) formErrors.push(value);
+                }
+            }
+
+            // Set field-specific errors
+            Object.entries(fieldErrors).forEach(([key, value]) => {
+                form.setError(key as keyof typeof form.data, value);
+            });
+
+            // Set general errors
+            setGeneralErrors(formErrors);
+        } else {
+            // Clear errors when no errors exist
+            setGeneralErrors([]);
+        }
+    }, [errors]);
 
     const handleSubmit = (values: DataSourceFormData | DataSourceEditFormData) => {
         onSubmit(values);
@@ -111,6 +146,21 @@ export default function DataSourceForm({ dataSource, onSubmit, isEditing = false
 
     return (
         <Form {...form}>
+
+            {/* General Error Banner */}
+            {generalErrors.length > 0 && (
+                <div className="space-y-2 mb-4">
+                    {generalErrors.map((error, index) => (
+                        <Alert key={index} variant="destructive">
+                            <XCircle className="h-4 w-4"/>
+                            <AlertDescription>
+                                {error}
+                            </AlertDescription>
+                        </Alert>
+                    ))}
+                </div>
+            )}
+
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                 <Card>
                     <CardHeader>

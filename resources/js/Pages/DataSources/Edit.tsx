@@ -11,9 +11,12 @@ import {route} from 'ziggy-js';
 
 interface Props {
     dataSource: DataSource;
+    errors?: {
+        [key: string]: string | undefined;
+    };
 }
 
-export default function Edit({dataSource}: Props) {
+export default function Edit({dataSource, errors}: Props) {
     const handleSubmit = (data: any) => {
         router.put(`/data-sources/${dataSource.id}`, data, {
             onSuccess: () => {
@@ -51,6 +54,7 @@ export default function Edit({dataSource}: Props) {
                             dataSource={dataSource}
                             onSubmit={handleSubmit}
                             isEditing={true}
+                            errors={errors}
                         />
                     </div>
                 </div>
