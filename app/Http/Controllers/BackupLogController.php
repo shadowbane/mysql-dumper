@@ -13,6 +13,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -95,7 +97,7 @@ class BackupLogController extends Controller
         }]);
 
         // Add computed attributes
-        $backupLog->human_size = $backupLog->human_size;
+        $backupLog->human_size = $backupLog->human_size; // Do not delete this, as human_size is computed
         $backupLog->human_duration = $backupLog->getHumanDuration();
         $backupLog->is_file_available = $backupLog->isFileAvailable();
 
@@ -136,63 +138,6 @@ class BackupLogController extends Controller
 
         } catch (Exception $e) {
             abort(500, 'Error downloading backup file: '.$e->getMessage());
-        }
-    }
-
-    /**
-     * Delete the backup file (but keep the log).
-     *
-     * @param  Request  $request
-     * @param  BackupLog  $backupLog
-     * @return RedirectResponse
-     */
-    public function deleteFile(Request $request, BackupLog $backupLog): RedirectResponse
-    {
-        try {
-            $lockName = "backup-log-delete-file-lock-{$backupLog->id}";
-
-            return $this->executeStoreWithLock($lockName, function () use ($backupLog) {
-                try {
-                    DB::beginTransaction();
-
-                    if (! $backupLog->isFileAvailable()) {
-                        DB::rollBack();
-
-                        return back()->withErrors(['message' => 'Backup file not found or already deleted.']);
-                    }
-
-                    // Delete file from storage
-                    $disk = Storage::disk($backupLog->disk);
-                    if ($disk->exists($backupLog->file_path)) {
-                        $disk->delete($backupLog->file_path);
-                    }
-
-                    // Mark file as deleted in database
-                    $backupLog->markFileAsDeleted();
-
-                    DB::commit();
-
-                    return back()->with('success', 'Backup file deleted successfully. Log entry preserved.');
-
-                } catch (Exception $e) {
-                    DB::rollBack();
-                    throw $e;
-                }
-            });
-        } catch (LockTimeoutException $e) {
-            logger()->error("Failed acquire lock when deleting backup file: {$e->getMessage()}", [
-                'exception' => $e,
-                'backup_log_id' => $backupLog->id,
-            ]);
-
-            return back()->withErrors(['message' => 'Failed to acquire lock. Please try again later.']);
-        } catch (\Throwable $e) {
-            logger()->error("Failed to delete backup file for log ID {$backupLog->id}: {$e->getMessage()}", [
-                'exception' => $e,
-                'backup_log_id' => $backupLog->id,
-            ]);
-
-            return back()->withErrors(['message' => 'Failed to delete backup file: '.$e->getMessage()]);
         }
     }
 
@@ -259,6 +204,10 @@ class BackupLogController extends Controller
         }
 
         try {
+            if ($backupLog->locked) {
+                abort(403, 'Backup log is locked.');
+            }
+
             $lockName = "backup-file-delete-lock-{$file->id}";
 
             return $this->executeStoreWithLock($lockName, function () use ($file) {
@@ -294,6 +243,72 @@ class BackupLogController extends Controller
             ]);
 
             return back()->withErrors(['message' => 'Failed to delete file: '.$e->getMessage()]);
+        }
+    }
+
+    public function lockBackup(Request $request, BackupLog $backupLog): RedirectResponse
+    {
+        try {
+            $lockName = "backupLog-lockBackup-lock-{$backupLog->id}";
+            $validator = Validator::make($request->all(), [
+                'log_id' => ['required', 'ulid'],
+                'locked' => ['required', 'bool'],
+            ], [
+                'log_id.required' => 'The log id field is required.',
+                'locked.required' => 'The lock status field is required.',
+                'locked.bool' => 'The lock status field must be a boolean.',
+                'log_id.ulid' => 'The log id field must be a valid ULID.',
+            ]);
+
+            if ($validator->fails()) {
+                throw new ValidationException($validator);
+            }
+
+            $validated = $validator->validated();
+
+            if ($validated['log_id'] !== $backupLog->id) {
+                $validator->errors()->add('log_id', 'Invalid log ID');
+                throw new ValidationException($validator);
+            }
+
+            return $this->executeStoreWithLock($lockName, function () use ($backupLog, $validated) {
+                try {
+                    DB::beginTransaction();
+
+                    $backupLog->update([
+                        'locked' => $validated['locked'],
+                    ]);
+
+                    DB::commit();
+
+                    return redirect()->route('backup-logs.show', [
+                        'backup_log' => $backupLog->id,
+                    ])->with('success', $validated['locked'] ? 'Backup log locked successfully.' : 'Backup log unlocked successfully.');
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    throw $e;
+                }
+            });
+        } catch (ValidationException $e) {
+            return redirect()
+                ->back()
+                ->withErrors($e->errors());
+        } catch (LockTimeoutException $e) {
+            logger()->error("Failed acquire lock when locking Backup Log: {$e->getMessage()}", [
+                'exception' => $e,
+            ]);
+
+            return redirect()
+                ->back()
+                ->withErrors('Failed to acquire lock. Please try again later.');
+        } catch (\Throwable $e) {
+            logger()->error("Failed to lock Backup Log with ID {$backupLog->id}: {$e->getMessage()}", [
+                'exception' => $e,
+            ]);
+
+            return redirect()
+                ->back()
+                ->withErrors($e->getMessage());
         }
     }
 }

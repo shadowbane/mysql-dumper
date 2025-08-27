@@ -37,6 +37,7 @@ class BackupLog extends Model
         'warnings',
         'errors',
         'metadata',
+        'locked',
         'started_at',
         'completed_at',
     ];
@@ -54,6 +55,7 @@ class BackupLog extends Model
             'warnings' => 'array',
             'errors' => 'array',
             'metadata' => 'array',
+            'locked' => 'bool',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];

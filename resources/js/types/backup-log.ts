@@ -11,6 +11,7 @@ export interface BackupLog extends BaseModel {
     warnings: string[] | null;
     errors: string[] | null;
     metadata: Record<string, any> | null;
+    locked: boolean;
     started_at: string | null;
     completed_at: string | null;
     

@@ -1,10 +1,11 @@
 import {Head, Link, router} from '@inertiajs/react';
 import {BackupLog} from '@/types/backup-log';
 import {File} from '@/types/file';
-import {ArrowLeft, Download, Trash2, Database, Clock, HardDrive, AlertTriangle, CheckCircle} from 'lucide-react';
+import {ArrowLeft, Download, Trash2, Database, Clock, HardDrive, AlertTriangle, CheckCircle, Lock, Unlock, XCircle} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Badge} from '@/components/ui/badge';
+import {Alert, AlertDescription} from '@/components/ui/alert';
 import {toast} from 'sonner';
 import MainLayout from '@/layouts/Main';
 import {route} from 'ziggy-js';
@@ -18,17 +19,114 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {useState} from 'react';
+import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from '@/components/ui/dialog';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {useState, useEffect} from 'react';
+import {useForm} from '@inertiajs/react';
 import { format } from 'date-fns';
 
 interface Props {
     backupLog: BackupLog;
+    errors?: {
+        [key: string]: string | undefined;
+    };
 }
 
-export default function BackupLogShow({backupLog}: Props) {
+export default function BackupLogShow({backupLog, errors}: Props) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [fileToDelete, setFileToDelete] = useState<File | null>(null);
+    const [lockDialogOpen, setLockDialogOpen] = useState(false);
+    const [generalErrors, setGeneralErrors] = useState<string[]>([]);
+
+    const form = useForm<{
+        log_id: string;
+        locked: boolean;
+    }>({
+        log_id: '',
+        locked: false,
+    });
+
+    // Handle external errors (server-side validation)
+    useEffect(() => {
+        if (errors && Object.keys(errors).length > 0) {
+            const formErrors: string[] = [];
+            const fieldErrors: { [key: string]: string } = {};
+
+            for (const [key, value] of Object.entries(errors)) {
+                // Check if the key is a number (general error) or exists as a field in the form
+                if (!isNaN(Number(key))) {
+                    if (value) formErrors.push(value);
+                } else if (form.data[key as keyof typeof form.data] !== undefined) {
+                    // If the key exists in the form's values, it's a field error
+                    if (value) fieldErrors[key] = value;
+                } else {
+                    if (value) formErrors.push(value);
+                }
+            }
+
+            // Set field-specific errors
+            Object.entries(fieldErrors).forEach(([key, value]) => {
+                form.setError(key as keyof typeof form.data, value);
+            });
+
+            // Set general errors
+            setGeneralErrors(formErrors);
+        } else {
+            // Clear errors when no errors exist
+            setGeneralErrors([]);
+        }
+    }, [errors]);
+
+    const openLockDialog = (isLocking: boolean) => {
+        form.setData({
+            log_id: '',
+            locked: isLocking,
+        });
+        form.clearErrors();
+        setGeneralErrors([]);
+        setLockDialogOpen(true);
+    };
+
+    const closeLockDialog = () => {
+        setLockDialogOpen(false);
+        form.reset();
+        form.clearErrors();
+        setGeneralErrors([]);
+    };
+
+    const handleLockSubmit = () => {
+        form.post(route('backup-logs.lock', { backup_log: backupLog.id }), {
+            preserveScroll: true,
+            onError: () => {
+                // Errors are handled by the useEffect above
+            },
+            onSuccess: () => {
+                toast.success(form.data.locked ? "Backup Locked" : "Backup Unlocked", {
+                    description: form.data.locked
+                        ? "This backup log is now locked and protected from deletion."
+                        : "This backup log is now unlocked and can be deleted.",
+                });
+                closeLockDialog();
+                // Reload the page to reflect changes
+                router.reload({only: ['backupLog']});
+            }
+        });
+    };
+
+    // Determine if lock/unlock button should be shown
+    const shouldShowLockButton = () => {
+        // Show Lock button if unlocked AND at least one backup file exists
+        if (!backupLog.locked && backupLog.files && backupLog.files.length > 0) {
+            return { show: true, isLocking: true };
+        }
+        // Show Unlock button if locked
+        if (backupLog.locked) {
+            return { show: true, isLocking: false };
+        }
+        return { show: false, isLocking: false };
+    };
 
     const downloadIndividualFile = async (file: File) => {
         try {
@@ -184,6 +282,20 @@ export default function BackupLogShow({backupLog}: Props) {
                         </Link>
                     </div>
 
+                    {/* General Error Banner */}
+                    {generalErrors.length > 0 && (
+                        <div className="space-y-2 mb-4">
+                            {generalErrors.map((error, index) => (
+                                <Alert key={index} variant="destructive">
+                                    <XCircle className="h-4 w-4"/>
+                                    <AlertDescription>
+                                        {error}
+                                    </AlertDescription>
+                                </Alert>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h1 className="text-2xl font-bold">Backup Details</h1>
@@ -192,6 +304,32 @@ export default function BackupLogShow({backupLog}: Props) {
                             </p>
                         </div>
                         <div className="flex gap-2">
+                            {/* Lock/Unlock Button */}
+                            {(() => {
+                                const lockButton = shouldShowLockButton();
+                                if (lockButton.show) {
+                                    return (
+                                        <Button
+                                            variant={lockButton.isLocking ? "outline" : "secondary"}
+                                            onClick={() => openLockDialog(lockButton.isLocking)}
+                                        >
+                                            {lockButton.isLocking ? (
+                                                <>
+                                                    <Lock className="h-4 w-4 mr-2"/>
+                                                    Lock Backup
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Unlock className="h-4 w-4 mr-2"/>
+                                                    Unlock Backup
+                                                </>
+                                            )}
+                                        </Button>
+                                    );
+                                }
+                                return null;
+                            })()}
+
                             {backupLog.files && backupLog.files.length > 0 && (
                                 <>
                                     {backupLog.files.length === 1 && (
@@ -206,6 +344,7 @@ export default function BackupLogShow({backupLog}: Props) {
                                             <Button
                                                 variant="destructive"
                                                 onClick={() => openIndividualDeleteDialog(backupLog.files![0])}
+                                                disabled={backupLog.locked}
                                             >
                                                 <Trash2 className="h-4 w-4 mr-2"/>
                                                 Delete File
@@ -263,6 +402,25 @@ export default function BackupLogShow({backupLog}: Props) {
                                             <Badge variant={backupLog.files && backupLog.files.length > 0 ? 'default' : 'secondary'}>
                                                 {backupLog.files && backupLog.files.length > 0 ? 'Available' : 'No files'}
                                             </Badge>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-muted-foreground">Lock Status</p>
+                                            <Badge variant={backupLog.locked ? 'secondary' : 'outline'}>
+                                                {backupLog.locked ? (
+                                                    <>
+                                                        <Lock className="h-3 w-3 mr-1"/>
+                                                        Locked
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Unlock className="h-3 w-3 mr-1"/>
+                                                        Unlocked
+                                                    </>
+                                                )}
+                                            </Badge>
+                                        </div>
+                                        <div>
+                                            {/* Empty div to maintain grid layout */}
                                         </div>
                                     </div>
                                 </CardContent>
@@ -356,6 +514,7 @@ export default function BackupLogShow({backupLog}: Props) {
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => openIndividualDeleteDialog(file)}
+                                                            disabled={backupLog.locked}
                                                         >
                                                             <Trash2 className="h-4 w-4 text-destructive" />
                                                         </Button>
@@ -480,6 +639,118 @@ export default function BackupLogShow({backupLog}: Props) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Lock/Unlock Confirmation Dialog */}
+            <Dialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            {form.data.locked ? (
+                                <>
+                                    <Lock className="h-5 w-5"/>
+                                    Lock Backup
+                                </>
+                            ) : (
+                                <>
+                                    <Unlock className="h-5 w-5"/>
+                                    Unlock Backup
+                                </>
+                            )}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {form.data.locked
+                                ? "Review the benefits of locking this backup and confirm the action below."
+                                : "⚠️ Warning: Unlocking this backup will allow files to be deleted. Review the implications below."
+                            }
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        {form.data.locked ? (
+                            <div className="space-y-3">
+                                <p>
+                                    <strong>Benefits of locking this backup:</strong>
+                                </p>
+                                <ul className="list-disc list-inside space-y-1 text-sm">
+                                    <li>Prevents accidental deletion of backup files</li>
+                                    <li>Protects important backup data from being removed</li>
+                                    <li>Ensures backup retention for compliance or recovery needs</li>
+                                    <li>Provides an extra layer of security for critical backups</li>
+                                </ul>
+                                <p className="text-sm">
+                                    Once locked, you can only delete backup files by unlocking this backup first.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <p className="text-amber-600 font-medium">
+                                    ⚠️ <strong>Warning:</strong> Unlocking this backup will allow files to be deleted.
+                                </p>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                                    <li>Backup files will no longer be protected from deletion</li>
+                                    <li>Anyone with access can delete the backup files</li>
+                                    <li>This action removes the safety lock on this backup log</li>
+                                </ul>
+                                <p className="text-sm">
+                                    Only unlock if you intend to manage or delete the backup files.
+                                </p>
+                            </div>
+                        )}
+
+                        <div>
+                            <Label htmlFor="log_id">
+                                Verify Backup Log ID
+                            </Label>
+                            <Input
+                                id="log_id"
+                                type="text"
+                                placeholder={`Enter backup log ID: ${backupLog.id}`}
+                                value={form.data.log_id}
+                                onChange={(e) => form.setData('log_id', e.target.value)}
+                                className={form.errors.log_id ? 'border-red-500 mt-2' : 'mt-2'}
+                            />
+                            {form.errors.log_id && (
+                                <p className="text-sm text-red-600 mt-1">{form.errors.log_id}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                                You can copy this ID from the URL
+                            </p>
+                        </div>
+
+                        {generalErrors.length > 0 && (
+                            <div className="space-y-2">
+                                {generalErrors.map((error, index) => (
+                                    <Alert key={index} variant="destructive">
+                                        <XCircle className="h-4 w-4"/>
+                                        <AlertDescription>
+                                            {error}
+                                        </AlertDescription>
+                                    </Alert>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={closeLockDialog}
+                            disabled={form.processing}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleLockSubmit}
+                            disabled={form.processing}
+                            variant={form.data.locked ? "default" : "destructive"}
+                        >
+                            {form.processing ? 'Processing...' : (form.data.locked ? 'Lock Backup' : 'Unlock Backup')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </MainLayout>
     );
 }

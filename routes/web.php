@@ -55,6 +55,8 @@ Route::middleware('auth')->group(function () {
             ->name('index');
         Route::get('{backup_log}', [BackupLogController::class, 'show'])
             ->name('show');
+        Route::post('{backup_log}/lock', [BackupLogController::class, 'lockBackup'])
+            ->name('lock');
 
         // Individual file operations
         Route::get('{backup_log}/files/{file}/download', [BackupLogController::class, 'downloadFile'])
