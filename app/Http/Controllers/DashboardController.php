@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\BackupStatusEnum;
 use App\Models\BackupLog;
 use App\Models\DataSource;
+use App\Models\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -54,12 +55,19 @@ class DashboardController extends Controller
         $totalDataSources = DataSource::count();
         $newSourcesLastWeek = DataSource::where('created_at', '>=', now()->subWeek())->count();
 
-        $totalStorageUsed = BackupLog::where('status', BackupStatusEnum::completed)
-            ->sum('file_size');
+        $currentBackupIds = BackupLog::where('status', BackupStatusEnum::completed)
+            ->pluck('id');
+        $totalStorageUsed = File::where('fileable_type', BackupLog::class)
+            ->whereIn('fileable_id', $currentBackupIds)
+            ->sum('size_bytes');
+
         $lastMonthStorageUse = BackupLog::where('created_at', '<=', now()->subMonth())
             ->where('created_at', '>=', now()->subMonths(2))
             ->where('status', BackupStatusEnum::completed)
-            ->sum('file_size');
+            ->pluck('id');
+        $lastMonthStorageUse = File::where('fileable_type', BackupLog::class)
+            ->whereIn('fileable_id', $lastMonthStorageUse)
+            ->sum('size_bytes');
 
         $backupsThisMonth = BackupLog::where('created_at', '>=', now()->startOfMonth())->count();
         $backupsLastMonth = BackupLog::whereBetween('created_at',

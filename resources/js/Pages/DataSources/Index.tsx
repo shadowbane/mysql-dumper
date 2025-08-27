@@ -1,10 +1,10 @@
 import {DataTable} from '@/components/ui/data-table-server-side';
 import {createDynamicColumns} from '@/components/ui/data-table/columns/column-factory';
 import {route} from 'ziggy-js';
-import {Head} from '@inertiajs/react';
+import {Head, router} from '@inertiajs/react';
 import {PaginatedResponse} from '@/types/paginated-response';
 import {DataSource} from '@/types/datasource';
-import {Plug2, Download} from 'lucide-react';
+import {Plug2, Download, Database} from 'lucide-react';
 import {toast} from 'sonner';
 import MainLayout from '@/layouts/Main';
 import axios from 'axios';
@@ -15,8 +15,6 @@ interface Props {
 }
 
 export default function DataSourcesIndex({dataSources}: Props) {
-    console.log(dataSources);
-
     const testConnection = async (dataSource: DataSource) => {
         try {
             const response = await axios.post(route('data-sources.test', {
@@ -39,6 +37,12 @@ export default function DataSourcesIndex({dataSources}: Props) {
         }
     };
 
+    const redirectToLogPage = (dataSource: DataSource) => {
+        router.get(route('backup-logs.index', {
+            data_source_id: dataSource.id,
+        }));
+    }
+
     const tableActions = () => {
         return {
             create: {
@@ -57,6 +61,14 @@ export default function DataSourcesIndex({dataSources}: Props) {
                 value: 'name',
             },
             additionalActions: [
+                {
+                    type: 'command' as const,
+                    label: 'Show Logs',
+                    action: (row: DataSource) => redirectToLogPage(row),
+                    icon: <Database className="h-4 w-4"/>,
+                    placement: 'inline' as const,
+                    order: 'beginning',
+                },
                 {
                     type: 'command' as const,
                     label: 'Test Connection',
