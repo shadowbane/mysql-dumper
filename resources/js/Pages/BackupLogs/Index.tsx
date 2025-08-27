@@ -64,7 +64,7 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
                     <DataTable
                         pageTitle="Backup Logs"
                         data={backupLogs}
-                        enableSearch={true}
+                        enableSearch={false}
                         columns={createDynamicColumns<BackupLog>([
                             {
                                 label: "Data Source",
@@ -119,6 +119,16 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
                         ])}
                         filters={[
                             {
+                                type: 'date_range',
+                                identifier: 'date',
+                                label: 'Date Range',
+                                options: {
+                                    timePicker: true,
+                                    timePickerIncrement: 30,
+                                    showDropdowns: true,
+                                }
+                            },
+                            {
                                 type: 'select',
                                 identifier: 'data_source_id',
                                 label: 'Data Source',
@@ -146,16 +156,6 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
                                     {label: "Manual", value: "Manual"},
                                     {label: "Automated", value: "Automated"},
                                 ]
-                            },
-                            {
-                                type: 'date',
-                                identifier: 'date_from',
-                                label: 'Date From',
-                            },
-                            {
-                                type: 'date',
-                                identifier: 'date_to',
-                                label: 'Date To',
                             },
                         ]}
                         rowClick={{

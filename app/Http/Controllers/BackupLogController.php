@@ -9,7 +9,6 @@ use App\Models\File;
 use App\Services\BackupDestinationService;
 use Exception;
 use Illuminate\Contracts\Cache\LockTimeoutException;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,15 +29,6 @@ class BackupLogController extends Controller
     {
         $query = BackupLog::with(['dataSource', 'timelines', 'files'])
             ->select('backup_logs.*');
-
-        // Search
-        if ($request->filled('search')) {
-            $searchTerm = $request->get('search');
-            $query->whereHas('dataSource', function (Builder $q) use ($searchTerm) {
-                $q->where('name', 'like', "%{$searchTerm}%")
-                    ->orWhere('database', 'like', "%{$searchTerm}%");
-            });
-        }
 
         // Filter by data source
         if ($request->filled('data_source_id')) {
