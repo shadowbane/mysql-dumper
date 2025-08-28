@@ -262,7 +262,8 @@ class BackupService implements BackupServiceInterface
             $isStructureOnly = in_array($table, $connection->structureOnly);
 
             $dumpSettings = [
-                'compress' => CompressManagerFactory::NONE,
+                'compress' => $this->getCompressionMethod(),
+                'compress-level' => $this->getCompressionLevel(),
                 'no-data' => $isStructureOnly, // Skip data if table is in structureOnly array
                 'add-drop-table' => true,
                 'single-transaction' => true,
@@ -280,7 +281,9 @@ class BackupService implements BackupServiceInterface
                 $dumpSettings = array_merge($dumpSettings, $connection->additionalOptions);
             }
 
-            $filename = "{$table}.sql";
+            $fileExtension = $this->getFileExtension($dumpSettings['compress']);
+
+            $filename = "{$table}.$fileExtension";
             $filePath = $temporaryDirectory->path($filename);
 
             $dump = new IMysqldump\Mysqldump($dsn, $connection->username, $connection->password, $dumpSettings);
@@ -355,7 +358,8 @@ class BackupService implements BackupServiceInterface
 
             // --skip-triggers  --no-data  --no-create-db --no-create-info --routines --events
             $dumpSettings = [
-                'compress' => CompressManagerFactory::NONE,
+                'compress' => $this->getCompressionMethod(),
+                'compress-level' => $this->getCompressionLevel(),
                 'no-data' => true,
                 'no-create-info' => true,
                 'routines' => true,
@@ -365,7 +369,8 @@ class BackupService implements BackupServiceInterface
                 // 'add-drop-triggers' => true,
             ];
 
-            $filename = '_database_structure.sql';
+            $fileExtension = $this->getFileExtension($dumpSettings['compress']);
+            $filename = "_database_structure.{$fileExtension}";
             $filePath = $temporaryDirectory->path($filename);
 
             $dump = new IMysqldump\Mysqldump($dsn, $connection->username, $connection->password, $dumpSettings);
@@ -409,6 +414,9 @@ class BackupService implements BackupServiceInterface
             ]);
         }
 
+        // Set maximum compression level (9)
+        $zip->setCompressionName('*', ZipArchive::CM_DEFLATE, 9);
+
         foreach ($files as $file) {
             $filename = basename($file);
             if (! $zip->addFile($file, $filename)) {
@@ -431,6 +439,17 @@ class BackupService implements BackupServiceInterface
         ];
 
         $zip->addFromString('backup_metadata.json', json_encode($metadata, JSON_PRETTY_PRINT));
+
+        // Add extractor script if we have compressed files
+        $hasCompressedFiles = collect($files)->some(fn($file) => str_ends_with($file, '.gz') ||
+            str_ends_with($file, '.bz2') ||
+            str_ends_with($file, '.zst') ||
+            str_ends_with($file, '.lz4')
+        );
+        if ($hasCompressedFiles) {
+            $extractorScript = $this->generateExtractorScript();
+            $zip->addFromString('extractor.sh', $extractorScript);
+        }
 
         $zip->close();
 
@@ -465,5 +484,113 @@ class BackupService implements BackupServiceInterface
         if (empty($connection->password)) {
             throw BackupException::invalidConfiguration('password', 'Password cannot be empty');
         }
+    }
+
+    private function getCompressionMethod(): string
+    {
+        $method = config('database-backup.compression.method', 'gzip');
+
+        return match ($method) {
+            'gzip' => CompressManagerFactory::GZIP,
+            'bzip2' => CompressManagerFactory::BZIP2,
+            'gzipstream' => CompressManagerFactory::GZIPSTREAM,
+            'zstd' => CompressManagerFactory::ZSTD,
+            'lz4' => CompressManagerFactory::LZ4,
+            'none' => CompressManagerFactory::NONE,
+            default => CompressManagerFactory::GZIP,
+        };
+    }
+
+    private function getFileExtension(string $compressionMethod): string
+    {
+        return match ($compressionMethod) {
+            CompressManagerFactory::NONE => 'sql',
+            CompressManagerFactory::GZIP => 'sql.gz',
+            CompressManagerFactory::GZIPSTREAM => 'sql.gz',
+            CompressManagerFactory::BZIP2 => 'sql.bz2',
+            CompressManagerFactory::ZSTD => 'sql.zst',
+            CompressManagerFactory::LZ4 => 'sql.lz4',
+            default => 'sql.gz',
+        };
+    }
+
+    private function getCompressionLevel(): int
+    {
+        return (int) config('database-backup.compression.level', 6);
+    }
+
+    private function generateExtractorScript(): string
+    {
+        return <<<'BASH'
+#!/bin/bash
+
+# MySQL Backup Extractor Script
+# This script extracts compressed .gz files to readable .sql files
+
+echo "MySQL Backup Extractor"
+echo "======================="
+echo
+
+# Check if gzip is available
+if ! command -v gzip &> /dev/null; then
+    echo "Error: gzip command not found. Please install gzip to extract compressed files."
+    exit 1
+fi
+
+# Function to extract a single .gz file
+extract_file() {
+    local gz_file="$1"
+    local sql_file="${gz_file%.gz}"
+
+    if [[ -f "$gz_file" ]]; then
+        echo "Extracting: $gz_file -> $sql_file"
+        if gunzip -c "$gz_file" > "$sql_file" 2>/dev/null; then
+            echo "✓ Successfully extracted: $sql_file"
+        else
+            echo "✗ Failed to extract: $gz_file"
+            return 1
+        fi
+    else
+        echo "✗ File not found: $gz_file"
+        return 1
+    fi
+}
+
+# Main extraction logic
+extracted_count=0
+failed_count=0
+
+echo "Scanning for .gz files..."
+echo
+
+# Find and extract all .gz files
+for gz_file in *.gz; do
+    if [[ -f "$gz_file" ]]; then
+        if extract_file "$gz_file"; then
+            ((extracted_count++))
+        else
+            ((failed_count++))
+        fi
+        echo
+    fi
+done
+
+# Summary
+echo "Extraction Summary:"
+echo "=================="
+echo "Successfully extracted: $extracted_count files"
+echo "Failed extractions: $failed_count files"
+echo
+
+if [[ $extracted_count -gt 0 ]]; then
+    echo "✓ Extraction completed!"
+    echo
+    echo "Available SQL files:"
+    ls -la *.sql 2>/dev/null || echo "No SQL files found."
+else
+    echo "No .gz files were found to extract."
+fi
+
+BASH;
     }
 }
