@@ -43,6 +43,7 @@ class DashboardController extends Controller
                 'created_at' => $log->created_at,
                 'is_file_available' => $log->isFileAvailable(),
                 'data_source' => $log->dataSource,
+                'locked' => $log->locked,
             ]);
     }
 
