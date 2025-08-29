@@ -141,6 +141,12 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                                         >
                                                             {backup.status}
                                                         </Badge>
+                                                        <Badge
+                                                            className="text-xs"
+                                                            variant={backup.locked ? 'default' : 'secondary'}
+                                                        >
+                                                            {backup.locked ? 'Locked' : 'Unlocked'}
+                                                        </Badge>
                                                         <span className={'font-mono'}>
                                                             {(() => {
                                                                 if (!backup.is_file_available) {
