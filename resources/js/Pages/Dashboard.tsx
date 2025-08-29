@@ -1,4 +1,4 @@
-import {Head, router} from '@inertiajs/react';
+import {Head, Link, router} from '@inertiajs/react';
 import {Activity, ArrowUpRight, CreditCard, HardDrive, Users} from 'lucide-react';
 import {useEffect} from 'react';
 
@@ -11,7 +11,7 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/c
 import {DataSource} from "@/types/datasource";
 import {triggerBackup} from "@/components/functions/backups";
 import {App} from "@/types/dashboard";
-import { format } from 'date-fns';
+import {format} from 'date-fns';
 
 export default function Dashboard({stats, recentBackups, activeDataSources}: App.Dashboard.PageProps) {
     useEffect(() => {
@@ -115,11 +115,16 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                         {recentBackups.map((backup) => (
                                             <TableRow key={backup.id}>
                                                 <TableCell>
-                                                    <div
-                                                        className="font-medium">{backup.data_source?.name}</div>
+                                                    <Link
+                                                        href={route('backup-logs.show', backup.id)}
+                                                        className="font-medium hover:underline"
+                                                    >
+                                                        {backup.data_source?.name}
+                                                    </Link>
                                                 </TableCell>
                                                 <TableCell className="text-left">
-                                                    <div className="hidden text-sm text-muted-foreground md:flex md:gap-2 md:items-center">
+                                                    <div
+                                                        className="hidden text-sm text-muted-foreground md:flex md:gap-2 md:items-center">
                                                         <Badge
                                                             className="text-xs"
                                                             variant={backup.type === 'Manual' ? 'default' : 'secondary'}
@@ -137,7 +142,7 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                                             {backup.status}
                                                         </Badge>
                                                         <span className={'font-mono'}>
-                                                            {(()=>{
+                                                            {(() => {
                                                                 if (!backup.is_file_available) {
                                                                     if (backup.status === 'Completed') {
                                                                         return 'Deleted';
@@ -155,7 +160,8 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                                         </span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-right">{format(new Date(backup.created_at as string), "dd LLL y HH:mm:ss")}</TableCell>
+                                                <TableCell
+                                                    className="text-right">{format(new Date(backup.created_at as string), "dd LLL y HH:mm:ss")}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
