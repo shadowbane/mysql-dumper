@@ -56,6 +56,11 @@ class BackupLogController extends Controller
             $query->whereDate('created_at', '<=', $request->get('date_to'));
         }
 
+        // Filter by locked status
+        if ($request->filled('locked')) {
+            $query->where('locked', $request->get('locked'));
+        }
+
         // Sorting
         $sortBy = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');

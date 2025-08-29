@@ -110,6 +110,14 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
                                 transformVariant: (_value: any, row: BackupLog) => getFileStatusVariant(row),
                             },
                             {
+                                label: "Locked",
+                                name: "locked",
+                                type: "badge",
+                                sortable: false,
+                                transform: (value: boolean) => (value ? 'Locked' : 'Unlocked'),
+                                transformVariant: (value: boolean) => (value ? 'default' : 'secondary'),
+                            },
+                            {
                                 label: "Created",
                                 name: "created_at",
                                 type: "text",
@@ -155,6 +163,15 @@ export default function BackupLogsIndex({backupLogs, dataSources}: Props) {
                                 options: [
                                     {label: "Manual", value: "Manual"},
                                     {label: "Automated", value: "Automated"},
+                                ]
+                            },
+                            {
+                                type: 'select',
+                                identifier: 'locked',
+                                label: 'Locked',
+                                options: [
+                                    {label: "Unlocked", value: 0},
+                                    {label: "Locked", value: 1},
                                 ]
                             },
                         ]}
