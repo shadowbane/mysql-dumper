@@ -459,11 +459,11 @@ export default function BackupLogShow({backupLog, errors}: Props) {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        {/*{timeline.metadata && Object.keys(timeline.metadata).length > 0 && (*/}
-                                                        {/*    <div className="text-xs text-muted-foreground mt-1">*/}
-                                                        {/*        {JSON.stringify(timeline.metadata, null, 2)}*/}
-                                                        {/*    </div>*/}
-                                                        {/*)}*/}
+                                                        {timeline.metadata && Object.keys(timeline.metadata).length > 0 && (
+                                                            <div className="text-xs text-muted-foreground mt-1">
+                                                                {JSON.stringify(timeline.metadata, null, 2)}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}

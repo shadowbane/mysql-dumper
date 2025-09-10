@@ -3,10 +3,10 @@
 namespace App\Listeners;
 
 use App\Contracts\BackupDestinationInterface;
-use App\Events\BackupCompletedEvent;
-use App\Events\BackupDestinationCompletedEvent;
+use App\Enums\BackupStatusEnum;
 use App\Events\BackupFailedEvent;
 use App\Events\BackupReadyEvent;
+use App\Jobs\StoreBackupToDestinationJob;
 use App\Services\BackupDestinationService;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -42,106 +42,35 @@ class HandleBackupReadyEvent implements ShouldQueue
                 return;
             }
 
-            // Mark as storing to destinations
-            $event->backupLog->markAsStoringToDestinations(
-                array_map(fn(BackupDestinationInterface $dest) => $dest->getDestinationId(), $destinations)
-            );
+            // Create initial timeline entry for storing to destinations phase
+            $event->backupLog->recordStatusChange($event->backupLog->status, [
+                'storing_phase_started' => now()->toISOString(),
+                'total_destinations' => count($destinations),
+                'destinations_list' => array_map(fn(BackupDestinationInterface $dest) => $dest->getDestinationId(), $destinations),
+            ]);
 
-            // Store to each destination
-            $successes = 0;
-            $failures = 0;
-
+            // Dispatch individual jobs for each destination
             foreach ($destinations as $destination) {
-                try {
-                    $filePath = $destination->store(
-                        backupLog: $event->backupLog,
-                        temporaryFilePath: $event->fileData->fullPath,
-                        filename: $event->fileData->filename,
-                        metadata: $event->metadata
-                    );
+                $destinationId = $destination->getDestinationId();
 
-                    if ($filePath) {
-                        $event->backupLog->recordDestinationCompletion(
-                            destinationId: $destination->getDestinationId(),
-                            success: true,
-                            filePath: $filePath
-                        );
-                        $successes++;
-
-                        // Emit individual destination completed event
-                        BackupDestinationCompletedEvent::dispatch(
-                            $event->backupLog,
-                            $destination->getDestinationId(),
-                            true,
-                            $filePath
-                        );
-                    } else {
-                        throw new Exception('Destination returned null file path');
-                    }
-                } catch (Exception $e) {
-                    $event->backupLog->recordDestinationCompletion(
-                        destinationId: $destination->getDestinationId(),
-                        success: false,
-                        filePath: null,
-                        errorMessage: $e->getMessage()
-                    );
-                    $failures++;
-
-                    // Emit individual destination completed event
-                    BackupDestinationCompletedEvent::dispatch(
-                        $event->backupLog,
-                        $destination->getDestinationId(),
-                        false,
-                        null,
-                        $e->getMessage()
-                    );
-                }
-            }
-
-            // Determine final status
-            if ($successes > 0 && $failures === 0) {
-                // All destinations succeeded
-                $event->backupLog->markAsCompleted(
-                    array_merge($event->metadata, [
-                        'destinations_succeeded' => $successes,
-                        'destinations_failed' => $failures,
-                        'total_destinations' => count($destinations),
-                    ])
-                );
-
-                // Emit backup completed event
-                BackupCompletedEvent::dispatch(
-                    $event->backupLog,
-                    $event->fileData->filename,
-                    $event->fileData->fileSize,
-                    array_merge($event->metadata, [
-                        'destinations_succeeded' => $successes,
-                        'destinations_failed' => $failures,
-                        'total_destinations' => count($destinations),
-                    ])
-                );
-            } elseif ($successes > 0) {
-                // Some destinations succeeded, some failed - mark as partially failed
-                $event->backupLog->markAsPartiallyFailed(
-                    array_merge($event->metadata, [
-                        'destinations_succeeded' => $successes,
-                        'destinations_failed' => $failures,
-                        'total_destinations' => count($destinations),
-                    ])
-                );
-
-                $event->backupLog->addWarning([
-                    'message' => "Some destinations failed: {$failures} out of ".count($destinations),
-                    'destinations_succeeded' => $successes,
-                    'destinations_failed' => $failures,
+                // Create initial timeline entry for this destination (queued state)
+                $event->backupLog->timelines()->create([
+                    'status' => BackupStatusEnum::storing_to_destinations,
+                    'metadata' => [
+                        'destination_id' => $destinationId,
+                        'has_started' => false,
+                        'queued_at' => now()->toISOString(),
+                        'retries' => 0,
+                    ],
                 ]);
-            } else {
-                // All destinations failed
-                $exception = new Exception("All backup destinations failed: {$failures} out of ".count($destinations));
-                $event->backupLog->markAsFailed($exception);
 
-                // Emit backup failed event
-                BackupFailedEvent::dispatch($event->backupLog, $exception);
+                // Dispatch the job for this destination
+                StoreBackupToDestinationJob::dispatch(
+                    $event->backupLog->id,
+                    $destinationId,
+                    $event->fileData,
+                    $event->metadata
+                );
             }
 
         } catch (Exception $e) {
@@ -149,8 +78,8 @@ class HandleBackupReadyEvent implements ShouldQueue
 
             // Emit backup failed event
             BackupFailedEvent::dispatch($event->backupLog, $e);
-        } finally {
-            // Clean up temporary file
+
+            // Clean up temporary file immediately if we failed to dispatch jobs
             if ($event->fileData->temporaryDirectory->exists()) {
                 $event->fileData->temporaryDirectory->delete();
             }

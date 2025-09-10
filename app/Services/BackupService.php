@@ -14,6 +14,7 @@ use Druidfi\Mysqldump\Compress\CompressManagerFactory;
 use Exception;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Spatie\TemporaryDirectory\TemporaryDirectory;
 use ZipArchive;
@@ -55,6 +56,9 @@ class BackupService implements BackupServiceInterface
                 'skipped_tables' => $connectionDTO->skippedTables,
             ];
 
+            // Clean up all files except final .zip file
+            $this->deleteUnzippedFiles($fileData);
+
             // Mark backup as ready and emit event for destination storage
             $backupLog->markAsBackupReady(
                 metadata: $metadata
@@ -62,7 +66,6 @@ class BackupService implements BackupServiceInterface
 
             // Emit event for destination handlers
             BackupReadyEvent::dispatch($backupLog, $fileData, $metadata);
-
         } catch (Exception $e) {
             // Mark backup as failed
             $backupLog->markAsFailed($e);
@@ -75,6 +78,14 @@ class BackupService implements BackupServiceInterface
         }
     }
 
+    /**
+     * @param  ConnectionDTO  $connection
+     * @param  BackupLog  $backupLog
+     *
+     * @throws BackupException
+     *
+     * @return BackupFileDTO
+     */
     public function backup(ConnectionDTO $connection, BackupLog $backupLog): \App\DTO\BackupFileDTO
     {
         $this->validateConnection($connection);
@@ -142,6 +153,13 @@ class BackupService implements BackupServiceInterface
         }
     }
 
+    /**
+     * @param  ConnectionDTO  $connection
+     *
+     * @throws BackupException
+     *
+     * @return bool
+     */
     public function testConnection(ConnectionDTO $connection): bool
     {
         try {
@@ -159,6 +177,13 @@ class BackupService implements BackupServiceInterface
         }
     }
 
+    /**
+     * @param  ConnectionDTO  $connection
+     *
+     * @throws BackupException
+     *
+     * @return int
+     */
     public function getDatabaseSize(ConnectionDTO $connection): int
     {
         try {
@@ -186,6 +211,13 @@ class BackupService implements BackupServiceInterface
         }
     }
 
+    /**
+     * @param  ConnectionDTO  $connection
+     *
+     * @throws BackupException
+     *
+     * @return array
+     */
     public function getTables(ConnectionDTO $connection): array
     {
         try {
@@ -213,6 +245,13 @@ class BackupService implements BackupServiceInterface
         }
     }
 
+    /**
+     * @param  ConnectionDTO  $connection
+     *
+     * @throws BackupException
+     *
+     * @return array
+     */
     public function getViews(ConnectionDTO $connection): array
     {
         try {
@@ -240,6 +279,13 @@ class BackupService implements BackupServiceInterface
         }
     }
 
+    /**
+     * @param  ConnectionDTO  $connection
+     *
+     * @throws BackupException
+     *
+     * @return array
+     */
     private function getTablesToBackup(ConnectionDTO $connection): array
     {
         $allTables = $this->getTables($connection);
@@ -253,6 +299,15 @@ class BackupService implements BackupServiceInterface
         });
     }
 
+    /**
+     * @param  ConnectionDTO  $connection
+     * @param  string  $table
+     * @param  TemporaryDirectory  $temporaryDirectory
+     *
+     * @throws BackupException
+     *
+     * @return string
+     */
     private function backupTable(ConnectionDTO $connection, string $table, TemporaryDirectory $temporaryDirectory): string
     {
         try {
@@ -311,6 +366,15 @@ class BackupService implements BackupServiceInterface
         }
     }
 
+    /**
+     * @param  ConnectionDTO  $connection
+     * @param  string  $view
+     * @param  TemporaryDirectory  $temporaryDirectory
+     *
+     * @throws BackupException
+     *
+     * @return string
+     */
     private function backupView(ConnectionDTO $connection, string $view, TemporaryDirectory $temporaryDirectory): string
     {
         try {
@@ -351,6 +415,12 @@ class BackupService implements BackupServiceInterface
         }
     }
 
+    /**
+     * @param  ConnectionDTO  $connection
+     * @param  TemporaryDirectory  $temporaryDirectory
+     * @param  BackupLog  $backupLog
+     * @return string|null
+     */
     private function backupDatabaseStructure(ConnectionDTO $connection, TemporaryDirectory $temporaryDirectory, BackupLog $backupLog): ?string
     {
         try {
@@ -400,6 +470,15 @@ class BackupService implements BackupServiceInterface
         }
     }
 
+    /**
+     * @param  array  $files
+     * @param  TemporaryDirectory  $temporaryDirectory
+     * @param  string  $databaseName
+     *
+     * @throws BackupException
+     *
+     * @return string
+     */
     private function createZipArchive(array $files, TemporaryDirectory $temporaryDirectory, string $databaseName): string
     {
         $filename = $databaseName.'_'.now()->format('YmdHis').'.zip';
@@ -463,6 +542,13 @@ class BackupService implements BackupServiceInterface
         return $zipPath;
     }
 
+    /**
+     * @param  ConnectionDTO  $connection
+     *
+     * @throws BackupException
+     *
+     * @return void
+     */
     private function validateConnection(ConnectionDTO $connection): void
     {
         if (empty($connection->host)) {
@@ -486,6 +572,9 @@ class BackupService implements BackupServiceInterface
         }
     }
 
+    /**
+     * @return string
+     */
     private function getCompressionMethod(): string
     {
         $method = config('database-backup.compression.method', 'gzip');
@@ -501,6 +590,10 @@ class BackupService implements BackupServiceInterface
         };
     }
 
+    /**
+     * @param  string  $compressionMethod
+     * @return string
+     */
     private function getFileExtension(string $compressionMethod): string
     {
         return match ($compressionMethod) {
@@ -514,11 +607,17 @@ class BackupService implements BackupServiceInterface
         };
     }
 
+    /**
+     * @return int
+     */
     private function getCompressionLevel(): int
     {
         return (int) config('database-backup.compression.level', 6);
     }
 
+    /**
+     * @return string
+     */
     private function generateExtractorScript(): string
     {
         return <<<'BASH'
@@ -592,5 +691,25 @@ else
 fi
 
 BASH;
+    }
+
+    /**
+     * Remove temporary files except zip file.
+     * This could dramatically reduce our storage footprint,
+     * and resulting in cleaner processes.
+     *
+     * @param  BackupFileDTO  $fileData
+     * @return void
+     */
+    public function deleteUnzippedFiles(BackupFileDTO $fileData): void
+    {
+        $files = File::files($fileData->directoryName);
+
+        foreach ($files as $file) {
+            // We use strtolower to catch extensions like .ZIP or .Zip
+            if (strtolower($file->getExtension()) !== 'zip') {
+                File::delete($file->getPathname());
+            }
+        }
     }
 }

@@ -17,8 +17,12 @@ class BackupFileDTO extends Data
 
         #[Computed]
         public ?string $filename = null,
+
+        #[Computed]
+        public ?string $directoryName = null,
     ) {
         $this->filename = basename($this->fullPath);
         $this->fileSize = filesize($this->fullPath);
+        $this->directoryName = dirname($this->fullPath);
     }
 }

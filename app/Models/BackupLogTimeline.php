@@ -71,4 +71,88 @@ class BackupLogTimeline extends Model
         return round($seconds / 3600, 1).'h';
 
     }
+
+    /**
+     * Check if this timeline entry is for a specific destination.
+     *
+     * @param  string  $destinationId
+     * @return bool
+     */
+    public function isForDestination(string $destinationId): bool
+    {
+        return isset($this->metadata['destination_id']) &&
+               $this->metadata['destination_id'] === $destinationId;
+    }
+
+    /**
+     * Get destination ID from metadata if available.
+     *
+     * @return string|null
+     */
+    public function getDestinationId(): ?string
+    {
+        return $this->metadata['destination_id'] ?? null;
+    }
+
+    /**
+     * Check if this is a destination-specific timeline entry.
+     *
+     * @return bool
+     */
+    public function isDestinationSpecific(): bool
+    {
+        return $this->status->value === BackupStatusEnum::storing_to_destinations &&
+               isset($this->metadata['destination_id']);
+    }
+
+    /**
+     * Check if this destination attempt was successful.
+     *
+     * @return bool|null
+     */
+    public function isDestinationSuccessful(): ?bool
+    {
+        if (! $this->isDestinationSpecific()) {
+            return null;
+        }
+
+        return $this->metadata['success'] ?? null;
+    }
+
+    /**
+     * Check if this destination will retry.
+     *
+     * @return bool
+     */
+    public function willRetry(): bool
+    {
+        return $this->metadata['will_retry'] ?? false;
+    }
+
+    /**
+     * Get the retry count for this attempt.
+     *
+     * @return int
+     */
+    public function getRetryCount(): int
+    {
+        return $this->metadata['retries'] ?? 0;
+    }
+
+    /**
+     * Scope to filter by destination ID.
+     */
+    public function scopeForDestination($query, string $destinationId)
+    {
+        return $query->whereJsonContains('metadata->destination_id', $destinationId);
+    }
+
+    /**
+     * Scope to filter destination-specific entries.
+     */
+    public function scopeDestinationSpecific($query)
+    {
+        return $query->where('status', BackupStatusEnum::storing_to_destinations)
+            ->whereNotNull('metadata->destination_id');
+    }
 }

@@ -375,4 +375,109 @@ class BackupLog extends Model
         return round($seconds / 3600, 1).'h';
 
     }
+
+    /**
+     * Get destination status summary from timelines.
+     *
+     * @return array
+     */
+    public function getDestinationStatusSummary(): array
+    {
+        $destinationTimelines = $this->timelines()
+            ->destinationSpecific()
+            ->get()
+            ->groupBy(function ($timeline) {
+                return $timeline->getDestinationId();
+            });
+
+        $summary = [];
+
+        foreach ($destinationTimelines as $destinationId => $timelines) {
+            $latestTimeline = $timelines->sortByDesc('created_at')->first();
+            $metadata = $latestTimeline->metadata;
+
+            $summary[$destinationId] = [
+                'status' => $this->determineDestinationStatus($timelines),
+                'retries' => $latestTimeline->getRetryCount(),
+                'last_error' => $metadata['error_message'] ?? null,
+                'file_path' => $metadata['file_path'] ?? null,
+                'success' => $metadata['success'] ?? null,
+                'will_retry' => $latestTimeline->willRetry(),
+                'latest_timeline' => $latestTimeline,
+            ];
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Determine the current status of a destination based on its timelines.
+     *
+     * @param  \Illuminate\Support\Collection  $timelines
+     * @return string
+     */
+    private function determineDestinationStatus($timelines): string
+    {
+        $latestTimeline = $timelines->sortByDesc('created_at')->first();
+        $metadata = $latestTimeline->metadata;
+
+        if (isset($metadata['success'])) {
+            return $metadata['success'] ? 'completed' : 'failed';
+        }
+
+        if ($metadata['will_retry'] ?? false) {
+            return 'retrying';
+        }
+
+        if ($metadata['has_started'] ?? false) {
+            return 'processing';
+        }
+
+        return 'queued';
+    }
+
+    /**
+     * Check if all destinations have completed (either success or final failure).
+     *
+     * @return bool
+     */
+    public function areAllDestinationsCompleted(): bool
+    {
+        $summary = $this->getDestinationStatusSummary();
+
+        foreach ($summary as $destinationData) {
+            $status = $destinationData['status'];
+            if ($status === 'queued' || $status === 'processing' || $status === 'retrying') {
+                return false;
+            }
+        }
+
+        return ! empty($summary); // Only true if there are destinations AND all are completed
+    }
+
+    /**
+     * Get count of successful/failed destinations.
+     *
+     * @return array ['successful' => int, 'failed' => int, 'total' => int]
+     */
+    public function getDestinationCounts(): array
+    {
+        $summary = $this->getDestinationStatusSummary();
+        $successful = 0;
+        $failed = 0;
+
+        foreach ($summary as $destinationData) {
+            if ($destinationData['status'] === 'completed') {
+                $successful++;
+            } elseif ($destinationData['status'] === 'failed') {
+                $failed++;
+            }
+        }
+
+        return [
+            'successful' => $successful,
+            'failed' => $failed,
+            'total' => count($summary),
+        ];
+    }
 }
