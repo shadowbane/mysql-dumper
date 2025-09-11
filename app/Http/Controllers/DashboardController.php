@@ -56,11 +56,13 @@ class DashboardController extends Controller
         $totalDataSources = DataSource::count();
         $newSourcesLastWeek = DataSource::where('created_at', '>=', now()->subWeek())->count();
 
-        $currentBackupIds = BackupLog::where('status', BackupStatusEnum::completed)
+        $currentBackupIds = BackupLog::whereIn('status', [BackupStatusEnum::completed, BackupStatusEnum::partially_failed])
             ->pluck('id');
         $totalStorageUsed = File::where('fileable_type', BackupLog::class)
             ->whereIn('fileable_id', $currentBackupIds)
-            ->sum('size_bytes');
+            ->groupBy('fileable_id')
+            // ->groupBy('fileable_type')
+            ->max('size_bytes');
 
         $lastMonthStorageUse = BackupLog::where('created_at', '<=', now()->subMonth())
             ->where('created_at', '>=', now()->subMonths(2))

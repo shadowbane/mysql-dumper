@@ -292,7 +292,10 @@ class BackupLog extends Model
      */
     public function getHumanSizeAttribute(): string
     {
-        $totalBytes = $this->files()->sum('size_bytes');
+        // Use max, to determine max file size
+        // This is useful because we need to know a single backup file size,
+        // instead of the sum of all backup across storages.
+        $totalBytes = $this->files()->max('size_bytes');
 
         if (! $totalBytes) {
             return 'Unknown';
@@ -343,7 +346,7 @@ class BackupLog extends Model
         }
 
         $completeTime = $this->timelines
-            ->where('status', BackupStatusEnum::completed)
+            ->whereIn('status', [BackupStatusEnum::completed, BackupStatusEnum::partially_failed])
             ->first();
 
         if (blank($completeTime)) {

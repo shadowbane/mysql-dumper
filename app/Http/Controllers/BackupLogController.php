@@ -72,7 +72,7 @@ class BackupLogController extends Controller
 
         // Add computed attributes
         $backupLogs->getCollection()->transform(function (BackupLog $backupLog) {
-            // $backupLog->human_size = $backupLog->human_size;
+            $backupLog->human_size = $backupLog->getHumanSizeAttribute();
             $backupLog->human_duration = $backupLog->getHumanDuration();
             $backupLog->is_file_available = $backupLog->isFileAvailable();
 
@@ -102,7 +102,7 @@ class BackupLogController extends Controller
         }]);
 
         // Add computed attributes
-        $backupLog->human_size = $backupLog->human_size; // Do not delete this, as human_size is computed
+        $backupLog->human_size = $backupLog->getHumanSizeAttribute();
         $backupLog->human_duration = $backupLog->getHumanDuration();
         $backupLog->is_file_available = $backupLog->isFileAvailable();
 
