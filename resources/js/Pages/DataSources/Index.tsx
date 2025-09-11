@@ -83,7 +83,7 @@ export default function DataSourcesIndex({dataSources}: Props) {
                     action: (row: DataSource) => triggerBackup(row),
                     icon: <Download className="h-4 w-4"/>,
                     placement: 'inline' as const,
-                    disabled: (row: DataSource) => ["Pending", "Running"].includes(row.latest_backup_log?.status), //row.latest_backup_log?.status === 'Running',
+                    disabled: (row: DataSource) => ["Pending", "Running"].includes(row.latest_backup_log?.status as string), //row.latest_backup_log?.status === 'Running',
                     order: 'beginning',
                 },
             ],
@@ -131,6 +131,8 @@ export default function DataSourcesIndex({dataSources}: Props) {
                 return `Failed - ${formatDate(latestBackup.completed_at)}`;
             case 'Pending':
                 return 'Pending';
+            case 'Partially Failed':
+                return 'Partially Failed';
             default:
                 return 'Unknown';
         }
@@ -152,6 +154,8 @@ export default function DataSourcesIndex({dataSources}: Props) {
             case 'Failed':
                 return 'destructive';
             case 'Pending':
+                return 'secondary';
+            case 'Partially Failed':
                 return 'secondary';
             default:
                 return 'secondary';

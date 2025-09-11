@@ -1,7 +1,7 @@
 import {Head, Link, router} from '@inertiajs/react';
 import {BackupLog} from '@/types/backup-log';
 import {File} from '@/types/file';
-import {ArrowLeft, Download, Trash2, Database, Clock, HardDrive, AlertTriangle, CheckCircle, Lock, Unlock, XCircle} from 'lucide-react';
+import {ArrowLeft, Download, Trash2, Database, Clock, HardDrive, AlertTriangle, CheckCircle, Lock, Unlock, XCircle, PackageCheck, UploadCloud, EyeOff, Eye} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Badge} from '@/components/ui/badge';
@@ -34,6 +34,7 @@ interface Props {
 }
 
 export default function BackupLogShow({backupLog, errors}: Props) {
+    const [showDetails, setShowDetails] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [fileToDelete, setFileToDelete] = useState<File | null>(null);
@@ -185,7 +186,13 @@ export default function BackupLogShow({backupLog, errors}: Props) {
         switch (status) {
             case 'Completed':
                 return 'default';
+            case 'Backup Ready':
+                return 'outline';
+            case 'Storing to Destinations':
+                return 'outline';
             case 'Running':
+                return 'outline';
+            case 'Partially Failed':
                 return 'outline';
             case 'Failed':
                 return 'destructive';
@@ -200,8 +207,14 @@ export default function BackupLogShow({backupLog, errors}: Props) {
         switch (status) {
             case 'Completed':
                 return <CheckCircle className="h-4 w-4 text-green-600" />;
+            case 'Backup Ready':
+                return <PackageCheck className="h-4 w-4 text-blue-600" />;
+            case 'Storing to Destinations':
+                return <UploadCloud className="h-4 w-4 text-blue-600" />;
             case 'Running':
                 return <Clock className="h-4 w-4 text-blue-600" />;
+            case 'Partially Failed':
+                return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
             case 'Failed':
                 return <AlertTriangle className="h-4 w-4 text-red-600" />;
             case 'Pending':
@@ -430,9 +443,17 @@ export default function BackupLogShow({backupLog, errors}: Props) {
                             {backupLog.timelines && backupLog.timelines.length > 0 && (
                                 <Card className="mt-6">
                                     <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Clock className="h-5 w-5"/>
-                                            Backup Timeline
+                                        <CardTitle className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Clock className="h-5 w-5"/>
+                                                Backup Timeline
+                                            </div>
+                                            <Button variant="outline" size="sm" onClick={() => setShowDetails(!showDetails)}>
+                                                {showDetails
+                                                    ? <EyeOff className="h-5 w-5"/>
+                                                    : <Eye className="h-5 w-5"/>
+                                                }
+                                            </Button>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
@@ -459,7 +480,7 @@ export default function BackupLogShow({backupLog, errors}: Props) {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        {timeline.metadata && Object.keys(timeline.metadata).length > 0 && (
+                                                        {showDetails && timeline.metadata && Object.keys(timeline.metadata).length > 0 && (
                                                             <div className="text-xs text-muted-foreground mt-1">
                                                                 {JSON.stringify(timeline.metadata, null, 2)}
                                                             </div>

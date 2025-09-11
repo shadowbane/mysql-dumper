@@ -37,7 +37,6 @@ class SftpBackupDestination implements BackupDestinationInterface
             $finalPath = $this->path.'/'.$filename;
             $contents = file_get_contents($temporaryFilePath);
 
-            throw new \Exception("Failed to store backup to '{$this->disk}' SFTP disk");
             if (! Storage::disk($this->disk)->put($finalPath, $contents)) {
                 throw new Exception("Failed to store backup to '{$this->disk}' SFTP disk");
             }

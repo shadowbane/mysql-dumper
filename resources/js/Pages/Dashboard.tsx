@@ -197,7 +197,7 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
                                             <Button
                                                 size="sm"
                                                 onClick={() => runTriggerBackup(dataSource as DataSource)}
-                                                disabled={["Pending", "Running"].includes(dataSource?.latest_backup_log?.status as string)}
+                                                disabled={["Pending", "Running", "Backup Ready", "Storing to Destinations"].includes(dataSource?.latest_backup_log?.status as string)}
                                             >Backup Now</Button>
                                         </div>
                                     </div>
