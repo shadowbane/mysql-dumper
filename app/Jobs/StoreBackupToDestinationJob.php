@@ -196,6 +196,22 @@ class StoreBackupToDestinationJob implements ShouldQueue
 
     private function checkIfAllDestinationsProcessed(BackupLog $backupLog): void
     {
+        // Get the list of all intended destinations for this backup
+        $backupReadyTimeline = $backupLog->timelines()
+            ->where('status', 'Backup Ready')
+            ->whereNotNull('metadata->destinations_list')
+            ->first();
+
+        if (! $backupReadyTimeline || ! isset($backupReadyTimeline->metadata['destinations_list'])) {
+            logger()->warning('No destinations list found in backup timeline', [
+                'backup_log_id' => $backupLog->id,
+            ]);
+
+            return;
+        }
+
+        $intendedDestinations = $backupReadyTimeline->metadata['destinations_list'];
+
         // Get all destination timelines for this backup
         $destinationTimelines = $backupLog->timelines()
             ->where('status', BackupStatusEnum::storing_to_destinations)
@@ -206,6 +222,20 @@ class StoreBackupToDestinationJob implements ShouldQueue
             ->filter(function ($timelines, $destinationId) {
                 return ! empty($destinationId);
             });
+
+        // Check if we have timelines for all intended destinations
+        $processedDestinations = $destinationTimelines->keys()->toArray();
+        $missingDestinations = array_diff(array_values($intendedDestinations), $processedDestinations);
+
+        if (! empty($missingDestinations)) {
+            // Some destinations haven't even started yet
+            logger()->debug('Some destinations not yet started', [
+                'backup_log_id' => $backupLog->id,
+                'missing_destinations' => $missingDestinations,
+            ]);
+
+            return;
+        }
 
         $allDestinationsProcessed = true;
         $results = [];
@@ -230,6 +260,11 @@ class StoreBackupToDestinationJob implements ShouldQueue
                 $allDestinationsProcessed = false;
                 break;
             } elseif (isset($metadata['has_started']) && $metadata['has_started'] === false) {
+                // This destination hasn't started yet
+                $allDestinationsProcessed = false;
+                break;
+            } elseif (isset($metadata['has_started']) && $metadata['has_started'] === true && ! isset($metadata['success'])) {
+                // This destination is currently running (started but no final result yet)
                 $allDestinationsProcessed = false;
                 break;
             } elseif (
