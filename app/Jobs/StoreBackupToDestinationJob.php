@@ -54,6 +54,7 @@ class StoreBackupToDestinationJob implements ShouldQueue
             'has_started' => true,
             'started_at' => now()->toISOString(),
             'retries' => $this->retryCount,
+            'retry_scheduled' => false, // Clear the retry scheduled flag when job actually starts
         ]);
 
         try {
@@ -128,6 +129,13 @@ class StoreBackupToDestinationJob implements ShouldQueue
             ]);
 
             if ($willRetry) {
+                // Update timeline to indicate retry is scheduled
+                $this->updateDestinationTimeline($backupLog, [
+                    'retry_scheduled' => true,
+                    'retry_scheduled_at' => now()->toISOString(),
+                    'delay_seconds' => pow(2, $this->retryCount) * (app()->environment() === 'production' ? 60 : 1),
+                ]);
+
                 // Dispatch retry event and job
                 BackupDestinationRetryEvent::dispatch(
                     $backupLog,
@@ -217,11 +225,19 @@ class StoreBackupToDestinationJob implements ShouldQueue
                 // This destination will retry, so not all are processed yet
                 $allDestinationsProcessed = false;
                 break;
+            } elseif (isset($metadata['retry_scheduled']) && $metadata['retry_scheduled']) {
+                // A retry job is scheduled for this destination, so not all are processed yet
+                $allDestinationsProcessed = false;
+                break;
             } elseif (isset($metadata['has_started']) && $metadata['has_started'] === false) {
                 $allDestinationsProcessed = false;
                 break;
-            } elseif ((isset($metadata['success']) && $metadata['success'] === false) && (isset($metadata['will_retry']) && $metadata['will_retry'] === false)) {
-                // This destination has a final result
+            } elseif (
+                (isset($metadata['success']) && $metadata['success'] === false) &&
+                (isset($metadata['will_retry']) && $metadata['will_retry'] === false) &&
+                (! isset($metadata['retry_scheduled']) || $metadata['retry_scheduled'] === false)
+            ) {
+                // This destination has a final result (failed with no retries and no scheduled retries)
                 $results[$destinationId] = [
                     'success' => $metadata['success'],
                     'file_path' => $metadata['file_path'] ?? null,
@@ -231,6 +247,7 @@ class StoreBackupToDestinationJob implements ShouldQueue
         }
 
         if ($allDestinationsProcessed && ! empty($results)) {
+            logger()->debug('All destinations processed');
             // All destinations have been processed, dispatch final event
             AllDestinationsProcessedEvent::dispatch(
                 $backupLog,
