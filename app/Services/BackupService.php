@@ -67,6 +67,10 @@ class BackupService implements BackupServiceInterface
             // Emit event for destination handlers
             BackupReadyEvent::dispatch($backupLog, $fileData, $metadata);
         } catch (Exception $e) {
+            logger()->error("Backup Process Failed: {$e->getMessage()}", [
+                'exception' => $e,
+            ]);
+
             // Mark backup as failed
             $backupLog->markAsFailed($e);
 

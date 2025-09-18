@@ -51,6 +51,12 @@ class SftpBackupDestination implements BackupDestinationInterface
 
             return $finalPath;
         } catch (Exception $e) {
+            logger()->error("{$this->disk} destinaton failed: {$e->getMessage()}", [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString(),
+                'previous' => $e->getPrevious(),
+            ]);
+
             if (Storage::disk($this->disk)->exists($finalPath)) {
                 Storage::disk($this->disk)->delete($finalPath);
             }

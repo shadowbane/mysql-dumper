@@ -23,7 +23,7 @@ class StoreBackupToDestinationJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 1; // We handle retries manually
+    // public int $tries = 1; // We handle retries manually
     public int $timeout = 3600; // 1 hour timeout
 
     public function __construct(

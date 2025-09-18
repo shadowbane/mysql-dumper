@@ -204,7 +204,7 @@ return [
                 'balanceCooldown' => 3,
                 'tries' => 3,
                 'backoff' => [5, 60, 300], // delay for 5s for first fail, 60s, then 300s
-                'timeout' => 600, // 10 minutes limit per job
+                'timeout' => 1200, // 10 minutes limit per job
             ],
         ],
 

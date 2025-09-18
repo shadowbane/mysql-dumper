@@ -156,10 +156,10 @@ class HandleAllDestinationsProcessedEvent implements ShouldQueue
                 ]);
             }
 
-            // Also try to clean up the directory if it exists and is empty
-            if ($event->fileData->temporaryDirectory->exists()) {
-                $event->fileData->temporaryDirectory->delete();
-            }
+            // // Also try to clean up the directory if it exists and is empty
+            // if ($event->fileData->temporaryDirectory->exists()) {
+            //     $event->fileData->temporaryDirectory->delete();
+            // }
         }
     }
 }

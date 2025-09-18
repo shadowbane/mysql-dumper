@@ -74,6 +74,10 @@ class HandleBackupReadyEvent implements ShouldQueue
             }
 
         } catch (Exception $e) {
+            logger()->error("Backup Failed: {$e->getMessage()}", [
+                'exception' => $e,
+            ]);
+
             $event->backupLog->markAsFailed($e);
 
             // Emit backup failed event
