@@ -58,19 +58,23 @@ class DashboardController extends Controller
 
         $currentBackupIds = BackupLog::whereIn('status', [BackupStatusEnum::completed, BackupStatusEnum::partially_failed])
             ->pluck('id');
-        $totalStorageUsed = File::where('fileable_type', BackupLog::class)
+        $totalStorageUsedData = File::where('fileable_type', BackupLog::class)
             ->whereIn('fileable_id', $currentBackupIds)
             ->groupBy('fileable_id')
-            // ->groupBy('fileable_type')
-            ->max('size_bytes') ?? 0;
+            ->selectRaw('fileable_id, max(`size_bytes`) as aggregate')
+            ->get();
+        $totalStorageUsed = $totalStorageUsedData->sum('aggregate') ?? 0;
 
         $lastMonthStorageUse = BackupLog::where('created_at', '<=', now()->subMonth())
             ->where('created_at', '>=', now()->subMonths(2))
             ->where('status', BackupStatusEnum::completed)
             ->pluck('id');
-        $lastMonthStorageUse = File::where('fileable_type', BackupLog::class)
+        $lastMonthStorageUseData = File::where('fileable_type', BackupLog::class)
             ->whereIn('fileable_id', $lastMonthStorageUse)
-            ->sum('size_bytes');
+            ->groupBy('fileable_id')
+            ->selectRaw('fileable_id, max(`size_bytes`) as aggregate')
+            ->get();
+        $lastMonthStorageUsed = $lastMonthStorageUseData->sum('aggregate') ?? 0;
 
         $backupsThisMonth = BackupLog::where('created_at', '>=', now()->startOfMonth())->count();
         $backupsLastMonth = BackupLog::whereBetween('created_at',
@@ -87,7 +91,7 @@ class DashboardController extends Controller
             ],
             'storageUsed' => [
                 'count' => $this->formatBytes($totalStorageUsed),
-                'comparison' => $this->calculatePercentageChange($totalStorageUsed, $lastMonthStorageUse),
+                'comparison' => $this->calculatePercentageChange($totalStorageUsed, $lastMonthStorageUsed),
             ],
             'backupsThisMonth' => [
                 'count' => $backupsThisMonth,
@@ -141,6 +145,8 @@ class DashboardController extends Controller
             return $current > 0 ? 100.0 : 0.0;
         }
 
-        return (($current - $previous) / $previous) * 100;
+        $percentage = (($current - $previous) / $previous) * 100;
+
+        return round($percentage, 2);
     }
 }
