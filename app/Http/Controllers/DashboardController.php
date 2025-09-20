@@ -62,7 +62,7 @@ class DashboardController extends Controller
             ->whereIn('fileable_id', $currentBackupIds)
             ->groupBy('fileable_id')
             // ->groupBy('fileable_type')
-            ->max('size_bytes');
+            ->max('size_bytes') ?? 0;
 
         $lastMonthStorageUse = BackupLog::where('created_at', '<=', now()->subMonth())
             ->where('created_at', '>=', now()->subMonths(2))

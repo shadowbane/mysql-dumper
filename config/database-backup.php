@@ -28,4 +28,53 @@ return [
         'method' => env('DB_DUMP_COMPRESSION_METHOD', 'gzip'),
         'level' => env('DB_DUMP_COMPRESSION_LEVEL', 6),
     ],
+
+    'cleanup' => [
+        /*
+         * The strategy that will be used to cleanup old backups. The default strategy
+         * will keep all backups for a certain amount of days. After that period only
+         * a daily backup will be kept. After that period only weekly backups will
+         * be kept and so on.
+         *
+         * No matter how you configure it the default strategy will never
+         * delete the newest backup.
+         */
+        'default_strategy' => [
+            /*
+             * The number of days for which backups must be kept.
+             */
+            'keep_all_backups_for_days' => 7,
+
+            /*
+             * After the "keep_all_backups_for_days" period is over, the most recent backup
+             * of that day will be kept. Older backups within the same day will be removed.
+             * If you create backups only once a day, no backups will be removed yet.
+             */
+            'keep_daily_backups_for_days' => 16,
+
+            /*
+             * After the "keep_daily_backups_for_days" period is over, the most recent backup
+             * of that week will be kept. Older backups within the same week will be removed.
+             * If you create backups only once a week, no backups will be removed yet.
+             */
+            'keep_weekly_backups_for_weeks' => 8,
+
+            /*
+             * After the "keep_weekly_backups_for_weeks" period is over, the most recent backup
+             * of that month will be kept. Older backups within the same month will be removed.
+             */
+            'keep_monthly_backups_for_months' => 4,
+
+            /*
+             * After the "keep_monthly_backups_for_months" period is over, the most recent backup
+             * of that year will be kept. Older backups within the same year will be removed.
+             */
+            'keep_yearly_backups_for_years' => 2,
+        ],
+
+        /*
+         * The number of attempts, in case the cleanup command encounters an exception
+         */
+        'tries' => 3,
+    ],
 ];

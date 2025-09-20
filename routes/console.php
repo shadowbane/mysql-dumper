@@ -12,3 +12,10 @@ Artisan::command('inspire', function () {
     ->onOneServer()
     ->timezone('UTC')
     ->withoutOverlapping();
+
+\Illuminate\Support\Facades\Schedule::command('backups:cleanup --queue')
+    ->daily()
+    ->at('02:00')
+    ->onOneServer()
+    ->timezone('UTC')
+    ->withoutOverlapping();
