@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\DTO\UserDTO;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -40,9 +41,23 @@ class HandleInertiaRequests extends Middleware
             'appName' => config('app.name'),
 
             // Lazily...
-            'auth.user' => fn() => $request->user()
-                ? $request->user()->only('id', 'name', 'email')
-                : null,
+            'auth.user' => $this->getUserDetail(),
         ]);
+    }
+
+    /**
+     * Return formatted user details.
+     *
+     * @return array|null
+     */
+    private function getUserDetail(): ?UserDTO
+    {
+        if (auth()->guest()) {
+            return null;
+        }
+
+        $user = auth()->user();
+
+        return UserDTO::from($user);
     }
 }

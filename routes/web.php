@@ -5,6 +5,7 @@ use App\Http\Controllers\BackupLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataSourceController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -64,4 +65,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('{backup_log}/files/{file}', [BackupLogController::class, 'deleteIndividualFile'])
             ->name('files.delete');
     });
+
+    // User management
+    Route::resource('user', UserController::class);
 });

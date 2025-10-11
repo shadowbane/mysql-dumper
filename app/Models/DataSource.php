@@ -84,4 +84,15 @@ class DataSource extends Model
     {
         return $this->hasHealthyBackup();
     }
+
+    /**
+     * Get the users that have access to this data source.
+     *
+     * @return BelongsToMany
+     */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'data_source_user')
+            ->withTimestamps();
+    }
 }

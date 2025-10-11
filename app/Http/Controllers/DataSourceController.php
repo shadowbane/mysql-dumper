@@ -12,6 +12,7 @@ use App\Models\DataSource;
 use Exception;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,8 @@ use Inertia\Response;
 
 class DataSourceController extends Controller
 {
+    use AuthorizesRequests;
+
     public function __construct(
         private readonly BackupServiceInterface $backupService
     ) {}
@@ -33,6 +36,14 @@ class DataSourceController extends Controller
     public function index(Request $request): Response
     {
         $query = DataSource::with('latestBackupLog');
+
+        // Filter by user permissions
+        if (! $request->user()->isAdministrator()) {
+            // Non-administrators only see data sources they have access to
+            $query->whereHas('users', function (Builder $q) use ($request) {
+                $q->where('users.id', $request->user()->id);
+            });
+        }
 
         // Search
         if ($request->filled('search')) {
@@ -142,6 +153,7 @@ class DataSourceController extends Controller
     {
 
         try {
+            $this->authorize('create', DataSource::class);
             $lockName = 'datasource-create-lock';
 
             return $this->executeStoreWithLock($lockName, function () use ($request) {
@@ -202,6 +214,7 @@ class DataSourceController extends Controller
     public function update(UpdateDataSourceRequest $request, DataSource $dataSource): RedirectResponse
     {
         try {
+            $this->authorize('update', $dataSource);
             $lockName = "datasource-update-lock-{$dataSource->id}";
 
             return $this->executeStoreWithLock($lockName, function () use ($request, $dataSource) {
@@ -255,6 +268,7 @@ class DataSourceController extends Controller
     public function destroy(Request $request, DataSource $dataSource): RedirectResponse
     {
         try {
+            $this->authorize('delete', $dataSource);
             $lockName = "datasource-destroy-lock-{$dataSource->id}";
 
             return $this->executeStoreWithLock($lockName, function () use ($dataSource) {
@@ -336,6 +350,8 @@ class DataSourceController extends Controller
         ]);
 
         try {
+            $this->authorize('view', $dataSource);
+
             $connectionDTO = new ConnectionDTO(
                 host: request('host'),
                 port: request('port'),
@@ -366,6 +382,8 @@ class DataSourceController extends Controller
     public function backupSingleDB(Request $request, DataSource $dataSource): JsonResponse
     {
         try {
+            $this->authorize('view', $dataSource);
+
             // Check if there's already a running backup for this data source
             $runningBackup = $dataSource->backupLogs()
                 ->where('status', BackupStatusEnum::running)
