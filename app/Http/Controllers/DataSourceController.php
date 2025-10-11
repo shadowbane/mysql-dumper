@@ -38,7 +38,7 @@ class DataSourceController extends Controller
         $query = DataSource::with('latestBackupLog');
 
         // Filter by user permissions
-        if (! $request->user()->isAdministrator()) {
+        if (! auth()->user()->isAdministrator()) {
             // Non-administrators only see data sources they have access to
             $query->whereHas('users', function (Builder $q) use ($request) {
                 $q->where('users.id', $request->user()->id);

@@ -8,6 +8,7 @@ use App\Models\DataSource;
 use App\Models\Schedule;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,13 @@ use Inertia\Response;
 
 class ScheduleController extends Controller
 {
+    use AuthorizesRequests;
+
+    public function __construct()
+    {
+        $this->authorize('viewAny', auth()->user());
+    }
+
     /**
      * Display a listing of the schedules.
      *

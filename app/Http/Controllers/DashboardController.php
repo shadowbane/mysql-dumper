@@ -6,6 +6,7 @@ use App\Enums\BackupStatusEnum;
 use App\Models\BackupLog;
 use App\Models\DataSource;
 use App\Models\File;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -32,6 +33,9 @@ class DashboardController extends Controller
     {
         // Recent Backups Table
         return BackupLog::with('dataSource:id,name')
+            ->when(! auth()->user()->isAdministrator(), function (Builder $query) {
+                $query->whereIn('backup_logs.data_source_id', auth()->user()->dataSources->pluck('id'));
+            })
             ->latest()
             ->take(5)
             ->get()
@@ -53,10 +57,21 @@ class DashboardController extends Controller
     private function getStats(): Collection
     {
         // Card Metrics
-        $totalDataSources = DataSource::count();
-        $newSourcesLastWeek = DataSource::where('created_at', '>=', now()->subWeek())->count();
+        $totalDataSources = DataSource::query()
+            ->when(! auth()->user()->isAdministrator(), function (Builder $query) {
+                $query->whereIn('id', auth()->user()->dataSources->pluck('id'));
+            })
+            ->count();
+        $newSourcesLastWeek = DataSource::where('created_at', '>=', now()->subWeek())
+            ->when(! auth()->user()->isAdministrator(), function (Builder $query) {
+                $query->whereIn('id', auth()->user()->dataSources->pluck('id'));
+            })
+            ->count();
 
         $currentBackupIds = BackupLog::whereIn('status', [BackupStatusEnum::completed, BackupStatusEnum::partially_failed])
+            ->when(! auth()->user()->isAdministrator(), function (Builder $query) {
+                $query->whereIn('backup_logs.data_source_id', auth()->user()->dataSources->pluck('id'));
+            })
             ->pluck('id');
         $totalStorageUsedData = File::where('fileable_type', BackupLog::class)
             ->whereIn('fileable_id', $currentBackupIds)
@@ -66,6 +81,9 @@ class DashboardController extends Controller
         $totalStorageUsed = $totalStorageUsedData->sum('aggregate') ?? 0;
 
         $lastMonthStorageUse = BackupLog::where('created_at', '<=', now()->subMonth())
+            ->when(! auth()->user()->isAdministrator(), function (Builder $query) {
+                $query->whereIn('backup_logs.data_source_id', auth()->user()->dataSources->pluck('id'));
+            })
             ->where('created_at', '>=', now()->subMonths(2))
             ->where('status', BackupStatusEnum::completed)
             ->pluck('id');
@@ -76,11 +94,21 @@ class DashboardController extends Controller
             ->get();
         $lastMonthStorageUsed = $lastMonthStorageUseData->sum('aggregate') ?? 0;
 
-        $backupsThisMonth = BackupLog::where('created_at', '>=', now()->startOfMonth())->count();
-        $backupsLastMonth = BackupLog::whereBetween('created_at',
-            [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])->count();
+        $backupsThisMonth = BackupLog::query()
+            ->when(! auth()->user()->isAdministrator(), function (Builder $query) {
+                $query->whereIn('backup_logs.data_source_id', auth()->user()->dataSources->pluck('id'));
+            })
+            ->where('created_at', '>=', now()->startOfMonth())->count();
+        $backupsLastMonth = BackupLog::query()
+            ->when(! auth()->user()->isAdministrator(), function (Builder $query) {
+                $query->whereIn('backup_logs.data_source_id', auth()->user()->dataSources->pluck('id'));
+            })
+            ->whereBetween('created_at', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])->count();
 
         $recentFailures = BackupLog::where('status', BackupStatusEnum::failed)
+            ->when(! auth()->user()->isAdministrator(), function (Builder $query) {
+                $query->whereIn('backup_logs.data_source_id', auth()->user()->dataSources->pluck('id'));
+            })
             ->where('created_at', '>=', now()->subDays(7))
             ->count();
 
@@ -128,6 +156,9 @@ class DashboardController extends Controller
         // Active Data Sources Card
         return DataSource::with('latestBackupLog:id,status,data_source_id')
             ->where('is_active', true)
+            ->when(! auth()->user()->isAdministrator(), function (Builder $query) {
+                $query->whereIn('id', auth()->user()->dataSources->pluck('id'));
+            })
             ->latest()
             ->take(5)
             ->get(['id', 'name', 'host'])

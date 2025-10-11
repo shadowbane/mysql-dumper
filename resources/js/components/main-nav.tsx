@@ -18,7 +18,7 @@ export function MainNav({className, ...props}: React.HTMLAttributes<HTMLElement>
         <NavigationMenu className={cn('flex-col items-start md:flex-row md:items-center', className)} {...props}>
             <NavigationMenuList className="flex-col space-y-2 md:flex-row md:space-x-4 md:space-y-0">
                 {applicationLinks
-                    .filter(nav => user.is_administrator || nav.pattern !== '/user')
+                    .filter(nav => user.is_administrator || (nav.pattern !== '/user' && nav.pattern !== '/schedules'))
                     .map((link) => (
                         <NavigationMenuItem key={link.href}>
                             <Link

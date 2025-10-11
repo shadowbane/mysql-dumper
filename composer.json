@@ -48,6 +48,7 @@
         }
     },
     "scripts": {
+        "ds:check": "@php vendor/bin/laradumps check --dir=app,routes,config --text=ds,ray,dd",
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

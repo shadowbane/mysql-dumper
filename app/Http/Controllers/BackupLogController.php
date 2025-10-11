@@ -9,6 +9,7 @@ use App\Models\File;
 use App\Services\BackupDestinationService;
 use Exception;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BackupLogController extends Controller
 {
+    use AuthorizesRequests;
+
     /**
      * Display a listing of backup logs.
      *
@@ -31,6 +34,12 @@ class BackupLogController extends Controller
     {
         $query = BackupLog::with(['dataSource', 'timelines', 'files'])
             ->select('backup_logs.*');
+
+        // Filter by user permissions
+        if (! auth()->user()->isAdministrator()) {
+            // Non-administrators only see data sources they have access to
+            $query->whereIn('backup_logs.data_source_id', auth()->user()->dataSources->pluck('id'));
+        }
 
         // Filter by data source
         if ($request->filled('data_source_id')) {
@@ -97,6 +106,8 @@ class BackupLogController extends Controller
      */
     public function show(Request $request, BackupLog $backupLog): Response
     {
+        $this->authorize('viewAny', $backupLog);
+
         $backupLog->load(['dataSource', 'timelines', 'files' => function ($query) {
             $query->whereNull('deleted_at');
         }]);
@@ -128,6 +139,8 @@ class BackupLogController extends Controller
      */
     public function download(Request $request, BackupLog $backupLog): StreamedResponse
     {
+        $this->authorize('viewAny', $backupLog);
+
         if (! $backupLog->isFileAvailable()) {
             abort(404, 'Backup file not found or has been deleted.');
         }
@@ -156,6 +169,8 @@ class BackupLogController extends Controller
      */
     public function downloadFile(Request $request, BackupLog $backupLog, File $file): StreamedResponse|\Symfony\Component\HttpFoundation\Response
     {
+        $this->authorize('viewAny', $backupLog);
+
         // Verify the file belongs to this backup log
         if ($file->fileable_id !== $backupLog->id || $file->fileable_type !== BackupLog::class) {
             abort(403, 'File does not belong to this backup log.');
@@ -199,6 +214,8 @@ class BackupLogController extends Controller
      */
     public function deleteIndividualFile(Request $request, BackupLog $backupLog, File $file): RedirectResponse
     {
+        $this->authorize('delete', $backupLog);
+
         // Verify the file belongs to this backup log
         if ($file->fileable_id !== $backupLog->id || $file->fileable_type !== BackupLog::class) {
             abort(403, 'File does not belong to this backup log.');
@@ -254,6 +271,8 @@ class BackupLogController extends Controller
     public function lockBackup(Request $request, BackupLog $backupLog): RedirectResponse
     {
         try {
+            $this->authorize('manageLock', $backupLog);
+
             $lockName = "backupLog-lockBackup-lock-{$backupLog->id}";
             $validator = Validator::make($request->all(), [
                 'log_id' => ['required', 'ulid'],

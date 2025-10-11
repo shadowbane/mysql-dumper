@@ -10,7 +10,7 @@ export function MobileNav() {
     return (
         <nav className="grid gap-2 text-lg font-medium">
             {applicationLinks
-                .filter(nav => user.is_administrator || nav.pattern !== '/user')
+                .filter(nav => user.is_administrator || (nav.pattern !== '/user' && nav.pattern !== '/schedules'))
                 .map((link) => (
                     <Link
                         key={link.href}
