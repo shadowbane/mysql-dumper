@@ -41,7 +41,8 @@ class DataSourcePolicy
     {
         // Administrators can update any data source
         // Members can update data sources they have access to
-        return $user->hasAccessToDataSource($dataSource->id);
+        // return $user->hasAccessToDataSource($dataSource->id);
+        return $user->isAdministrator();
     }
 
     /**

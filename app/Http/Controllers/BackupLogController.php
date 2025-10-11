@@ -214,8 +214,6 @@ class BackupLogController extends Controller
      */
     public function deleteIndividualFile(Request $request, BackupLog $backupLog, File $file): RedirectResponse
     {
-        $this->authorize('delete', $backupLog);
-
         // Verify the file belongs to this backup log
         if ($file->fileable_id !== $backupLog->id || $file->fileable_type !== BackupLog::class) {
             abort(403, 'File does not belong to this backup log.');
@@ -226,6 +224,8 @@ class BackupLogController extends Controller
         }
 
         try {
+            $this->authorize('delete', $backupLog);
+
             if ($backupLog->locked) {
                 abort(403, 'Backup log is locked.');
             }

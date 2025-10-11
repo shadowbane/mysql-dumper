@@ -313,6 +313,8 @@ class DataSourceController extends Controller
     public function testConnection(Request $request, DataSource $dataSource): JsonResponse
     {
         try {
+            $this->authorize('view', $dataSource);
+
             $connectionDTO = new ConnectionDTO(
                 host: $dataSource->host,
                 port: $dataSource->port,
