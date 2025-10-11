@@ -9,6 +9,7 @@ use App\Models\File;
 use App\Services\BackupDestinationService;
 use Exception;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -89,7 +90,11 @@ class BackupLogController extends Controller
         });
 
         // Get data sources for filter
-        $dataSources = DataSource::select('id', 'name')->orderBy('name')->get();
+        $dataSources = DataSource::select('id', 'name')->orderBy('name')
+            ->when(! auth()->user()->isAdministrator(), function (Builder $query) {
+                $query->whereIn('id', auth()->user()->dataSources->pluck('id'));
+            })
+            ->get();
 
         return Inertia::render('BackupLogs/Index', [
             'backupLogs' => $backupLogs,
