@@ -350,8 +350,6 @@ class DataSourceController extends Controller
         ]);
 
         try {
-            $this->authorize('view', $dataSource);
-
             $connectionDTO = new ConnectionDTO(
                 host: request('host'),
                 port: request('port'),

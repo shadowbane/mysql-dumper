@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BackupLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataSourceController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,10 @@ Route::middleware('auth')->group(function () {
 
     Route::any('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
+
+    // Profile
+    Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
 
     // Data Sources
     Route::prefix('data-sources')->name('data-sources.')->group(function () {
@@ -67,5 +72,6 @@ Route::middleware('auth')->group(function () {
     });
 
     // User management
-    Route::resource('user', UserController::class);
+    Route::resource('user', UserController::class)
+        ->except(['show']);
 });

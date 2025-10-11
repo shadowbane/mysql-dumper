@@ -35,18 +35,11 @@ export function UserNav() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                    {/*<DropdownMenuItem asChild>*/}
-                    {/*    <Link*/}
-                    {/*        // href={route('profile.edit')}*/}
-                    {/*        href="#"*/}
-                    {/*    >Profile</Link>*/}
-                    {/*</DropdownMenuItem>*/}
-                    {/*<DropdownMenuItem asChild>*/}
-                    {/*    <Link*/}
-                    {/*        // href={route('settings')}*/}
-                    {/*        href="#"*/}
-                    {/*    >Settings</Link>*/}
-                    {/*</DropdownMenuItem>*/}
+                    <DropdownMenuItem asChild>
+                        <Link
+                            href={route('profile.edit')}
+                        >Profile</Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                         <Link
                             href={route('logout')}
