@@ -18,7 +18,8 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
         const interval = setInterval(() => {
             router.get(route('dashboard'), {}, {
                 only: ['stats', 'recentBackups', 'activeDataSources'],
-                preserveScroll: true
+                preserveScroll: true,
+                preserveState: true
             });
         }, 10000);
 
@@ -28,7 +29,9 @@ export default function Dashboard({stats, recentBackups, activeDataSources}: App
     const runTriggerBackup = (dataSource: DataSource) => {
         triggerBackup(dataSource).then(() => {
             router.get(route('dashboard'), {}, {
-                only: ['recentBackups', 'activeDataSources']
+                only: ['recentBackups', 'activeDataSources'],
+                preserveState: true,
+                preserveScroll: true
             });
         });
     };
