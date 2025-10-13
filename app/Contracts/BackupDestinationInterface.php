@@ -26,10 +26,11 @@ interface BackupDestinationInterface
      * @param  string  $filename
      * @param  string  $path
      * @param  int  $sizeBytes
+     * @param  string  $hash
      * @param  array  $metadata
      * @return File|null
      */
-    public function createFileRecord(BackupLog $backupLog, string $filename, string $path, int $sizeBytes, array $metadata = []): ?File;
+    public function createFileRecord(BackupLog $backupLog, string $filename, string $path, int $sizeBytes, string $hash, array $metadata = []): ?File;
 
     /**
      * Delete a file record.

@@ -47,7 +47,11 @@ class SftpBackupDestination implements BackupDestinationInterface
                 filename: $filename,
                 path: $finalPath,
                 sizeBytes: filesize($temporaryFilePath),
+                hash: hash('md5', $contents),
             );
+
+            // Free up memory by unsetting $contents
+            unset($contents);
 
             return $finalPath;
         } catch (Exception $e) {
@@ -77,13 +81,14 @@ class SftpBackupDestination implements BackupDestinationInterface
      * @param  string  $filename
      * @param  string  $path
      * @param  int  $sizeBytes
+     * @param  string  $hash
      * @param  array  $metadata
      *
      * @throws Exception
      *
      * @return File|null
      */
-    public function createFileRecord(BackupLog $backupLog, string $filename, string $path, int $sizeBytes, array $metadata = []): ?File
+    public function createFileRecord(BackupLog $backupLog, string $filename, string $path, int $sizeBytes, string $hash, array $metadata = []): ?File
     {
         return $backupLog->files()->create([
             'filename' => $filename,
@@ -93,7 +98,7 @@ class SftpBackupDestination implements BackupDestinationInterface
             'mime_type' => 'application/zip',
             'is_public' => false,
             'label' => $this->getDestinationId(),
-            'hash' => hash('md5', Storage::disk($this->disk)->get($path)),
+            'hash' => $hash,
         ]);
     }
 
