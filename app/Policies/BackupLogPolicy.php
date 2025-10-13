@@ -12,7 +12,7 @@ class BackupLogPolicy
      */
     public function viewAny(User $user, BackupLog $backupLog): bool
     {
-        return in_array($backupLog->data_source_id, auth()->user()->dataSources->pluck('id')->toArray());
+        return $user->hasAccessToDataSource($backupLog->data_source_id);
     }
 
     /**
