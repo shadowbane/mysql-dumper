@@ -60,6 +60,8 @@ class StoreBackupToDestinationJob implements ShouldQueue
         try {
             // Get the destination instance
             $destinations = $backupDestinationService->getEnabledDestinations($backupLog);
+
+            /** @var BackupDestinationInterface $destination */
             $destination = collect($destinations)->first(function (BackupDestinationInterface $dest) {
                 return $dest->getDestinationId() === $this->destinationId;
             });
@@ -107,7 +109,7 @@ class StoreBackupToDestinationJob implements ShouldQueue
                 'retry_count' => $this->retryCount,
             ]);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             logger()->error('Failed to store backup to destination', [
                 'backup_log_id' => $this->backupLogId,
                 'destination_id' => $this->destinationId,
