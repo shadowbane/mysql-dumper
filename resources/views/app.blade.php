@@ -24,4 +24,11 @@
 <body class="font-sans antialiased">
 @inertia
 </body>
+@if(!app()->isLocal())
+    <script
+        src="https://tracking.dontshow.my.id/api/script.js"
+        data-site-id="92eea595da08"
+        defer
+    ></script>
+ @endif
 </html>

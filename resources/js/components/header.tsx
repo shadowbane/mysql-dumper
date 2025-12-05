@@ -10,6 +10,13 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 export default function Header() {
     const {props} = usePage();
+    const user = props?.auth?.user;
+
+    if (user && window.rybbit) {
+        window.rybbit.identify(user.email, {
+            user
+        });
+    }
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-white shadow-sm">
