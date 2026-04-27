@@ -16,11 +16,29 @@ class BackupLogPolicy
     }
 
     /**
-     * Determine if user can manage lock of backup log.
+     * Determine if user can lock the backup log.
      */
-    public function manageLock(User $user, BackupLog $backupLog): bool
+    public function lock(User $user, BackupLog $backupLog): bool
     {
-        return $user->isAdministrator();
+        if ($user->isAdministrator()) {
+            return true;
+        }
+
+        return (bool) config('database-backup.members.can_lock', false)
+            && $user->hasAccessToDataSource($backupLog->data_source_id);
+    }
+
+    /**
+     * Determine if user can unlock the backup log.
+     */
+    public function unlock(User $user, BackupLog $backupLog): bool
+    {
+        if ($user->isAdministrator()) {
+            return true;
+        }
+
+        return (bool) config('database-backup.members.can_unlock', false)
+            && $user->hasAccessToDataSource($backupLog->data_source_id);
     }
 
     /**

@@ -1,4 +1,5 @@
-import {Head, Link, router} from '@inertiajs/react';
+import {Head, Link, router, usePage} from '@inertiajs/react';
+import {PageProps} from '@/types';
 import {BackupLog} from '@/types/backup-log';
 import {File} from '@/types/file';
 import {ArrowLeft, Download, Trash2, Database, Clock, HardDrive, AlertTriangle, CheckCircle, Lock, Unlock, XCircle, PackageCheck, UploadCloud, EyeOff, Eye} from 'lucide-react';
@@ -34,6 +35,9 @@ interface Props {
 }
 
 export default function BackupLogShow({backupLog, errors}: Props) {
+    const authUser = usePage<PageProps>().props.auth?.user;
+    const canLock = authUser?.can_lock_backup ?? false;
+    const canUnlock = authUser?.can_unlock_backup ?? false;
     const [showDetails, setShowDetails] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -118,12 +122,12 @@ export default function BackupLogShow({backupLog, errors}: Props) {
 
     // Determine if lock/unlock button should be shown
     const shouldShowLockButton = () => {
-        // Show Lock button if unlocked AND at least one backup file exists
-        if (!backupLog.locked && backupLog.files && backupLog.files.length > 0) {
+        // Show Lock button if unlocked AND at least one backup file exists AND user can lock
+        if (!backupLog.locked && backupLog.files && backupLog.files.length > 0 && canLock) {
             return { show: true, isLocking: true };
         }
-        // Show Unlock button if locked
-        if (backupLog.locked) {
+        // Show Unlock button if locked AND user can unlock
+        if (backupLog.locked && canUnlock) {
             return { show: true, isLocking: false };
         }
         return { show: false, isLocking: false };

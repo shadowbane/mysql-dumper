@@ -4,6 +4,8 @@ export interface User {
     email: string;
     avatar?: string|null;
     is_administrator?: boolean;
+    can_lock_backup?: boolean;
+    can_unlock_backup?: boolean;
 }
 
 export interface Role {

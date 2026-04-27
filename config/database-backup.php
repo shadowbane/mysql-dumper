@@ -29,6 +29,18 @@ return [
         'level' => env('DB_DUMP_COMPRESSION_LEVEL', 6),
     ],
 
+    /*
+     * Member capabilities for backup logs.
+     *
+     * When a flag is enabled, users with the "member" role can perform that
+     * action on backup logs whose data source they have been granted access to.
+     * Administrators are always allowed regardless of these flags.
+     */
+    'members' => [
+        'can_lock' => env('BACKUP_MEMBERS_CAN_LOCK', false),
+        'can_unlock' => env('BACKUP_MEMBERS_CAN_UNLOCK', false),
+    ],
+
     'cleanup' => [
         /*
          * The strategy that will be used to cleanup old backups. The default strategy

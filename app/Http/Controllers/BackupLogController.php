@@ -203,7 +203,7 @@ class BackupLogController extends Controller
                 return $result;
             }
 
-            throw new \Exception('Unhandled response');
+            throw new Exception('Unhandled response');
         } catch (Exception $e) {
             abort(500, 'Error downloading file: '.$e->getMessage());
         }
@@ -276,8 +276,6 @@ class BackupLogController extends Controller
     public function lockBackup(Request $request, BackupLog $backupLog): RedirectResponse
     {
         try {
-            $this->authorize('manageLock', $backupLog);
-
             $lockName = "backupLog-lockBackup-lock-{$backupLog->id}";
             $validator = Validator::make($request->all(), [
                 'log_id' => ['required', 'ulid'],
@@ -300,6 +298,8 @@ class BackupLogController extends Controller
                 throw new ValidationException($validator);
             }
 
+            $this->authorize($validated['locked'] ? 'lock' : 'unlock', $backupLog);
+
             return $this->executeStoreWithLock($lockName, function () use ($backupLog, $validated) {
                 try {
                     DB::beginTransaction();
@@ -313,7 +313,7 @@ class BackupLogController extends Controller
                     return redirect()->route('backup-logs.show', [
                         'backup_log' => $backupLog->id,
                     ])->with('success', $validated['locked'] ? 'Backup log locked successfully.' : 'Backup log unlocked successfully.');
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     DB::rollBack();
                     throw $e;
                 }
