@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Contracts\BackupDestinationInterface;
 use App\DTO\BackupFileDTO;
+use App\DTO\DestinationResultDTO;
 use App\Enums\BackupStatusEnum;
 use App\Events\AllDestinationsProcessedEvent;
 use App\Events\BackupDestinationCompletedEvent;
@@ -18,6 +18,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Spatie\LaravelData\DataCollection;
 
 class StoreBackupToDestinationJob implements ShouldQueue
 {
@@ -58,16 +59,13 @@ class StoreBackupToDestinationJob implements ShouldQueue
         ]);
 
         try {
-            // Get the destination instance
-            $destinations = $backupDestinationService->getEnabledDestinations($backupLog);
-
-            /** @var BackupDestinationInterface $destination */
-            $destination = collect($destinations)->first(function (BackupDestinationInterface $dest) {
-                return $dest->getDestinationId() === $this->destinationId;
-            });
+            // Resolve from the configured registry without a liveness probe —
+            // if the endpoint is down, store() must fail with the real
+            // connection error so the retry/backoff machinery handles it.
+            $destination = $backupDestinationService->getDestination($this->destinationId);
 
             if (! $destination) {
-                throw new Exception("Destination {$this->destinationId} not found or not enabled");
+                throw new Exception("Destination {$this->destinationId} is not configured");
             }
 
             // Check if temporary file still exists
@@ -118,8 +116,8 @@ class StoreBackupToDestinationJob implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $maxRetries = 3;
-            $willRetry = $this->retryCount < $maxRetries - 1;
+            $maxAttempts = max(1, (int) config('database-backup.delivery.max_attempts', 3));
+            $willRetry = $this->retryCount < $maxAttempts - 1;
 
             // Update timeline with failure
             $this->updateDestinationTimeline($backupLog, [
@@ -131,11 +129,17 @@ class StoreBackupToDestinationJob implements ShouldQueue
             ]);
 
             if ($willRetry) {
+                // Exponential backoff, capped so a high max_attempts spaces out
+                // instead of exploding: min(base * 2^n, cap)
+                $baseSeconds = max(1, (int) config('database-backup.delivery.retry_base_seconds', 60));
+                $capSeconds = max($baseSeconds, (int) config('database-backup.delivery.retry_max_seconds', 3600));
+                $delay = min($baseSeconds * (2 ** $this->retryCount), $capSeconds);
+
                 // Update timeline to indicate retry is scheduled
                 $this->updateDestinationTimeline($backupLog, [
                     'retry_scheduled' => true,
                     'retry_scheduled_at' => now()->toISOString(),
-                    'delay_seconds' => pow(2, $this->retryCount) * (app()->environment() === 'production' ? 60 : 1),
+                    'delay_seconds' => $delay,
                 ]);
 
                 // Dispatch retry event and job
@@ -147,10 +151,6 @@ class StoreBackupToDestinationJob implements ShouldQueue
                     $this->fileData,
                     $this->metadata
                 );
-
-                // Schedule retry with exponential backoff
-                $multiplier = app()->environment() === 'production' ? 60 : 1; // multiply by 60s.
-                $delay = pow(2, $this->retryCount) * $multiplier; // 1min, 2min, 4min on prod, or 1s, 2s, 4s on local
 
                 // Dispatch the job for this destination
                 StoreBackupToDestinationJob::dispatch(
@@ -248,11 +248,12 @@ class StoreBackupToDestinationJob implements ShouldQueue
 
             if (isset($metadata['success']) && $metadata['success']) {
                 // This destination has a final result
-                $results[$destinationId] = [
-                    'success' => $metadata['success'],
-                    'file_path' => $metadata['file_path'] ?? null,
-                    'error' => $metadata['error_message'] ?? null,
-                ];
+                $results[] = new DestinationResultDTO(
+                    destinationId: $destinationId,
+                    success: $metadata['success'],
+                    filePath: $metadata['file_path'] ?? null,
+                    error: $metadata['error_message'] ?? null,
+                );
             } elseif (isset($metadata['will_retry']) && $metadata['will_retry']) {
                 // This destination will retry, so not all are processed yet
                 $allDestinationsProcessed = false;
@@ -275,11 +276,12 @@ class StoreBackupToDestinationJob implements ShouldQueue
                 (! isset($metadata['retry_scheduled']) || $metadata['retry_scheduled'] === false)
             ) {
                 // This destination has a final result (failed with no retries and no scheduled retries)
-                $results[$destinationId] = [
-                    'success' => $metadata['success'],
-                    'file_path' => $metadata['file_path'] ?? null,
-                    'error' => $metadata['error_message'] ?? null,
-                ];
+                $results[] = new DestinationResultDTO(
+                    destinationId: $destinationId,
+                    success: $metadata['success'],
+                    filePath: $metadata['file_path'] ?? null,
+                    error: $metadata['error_message'] ?? null,
+                );
             }
         }
 
@@ -289,7 +291,7 @@ class StoreBackupToDestinationJob implements ShouldQueue
             AllDestinationsProcessedEvent::dispatch(
                 $backupLog,
                 $this->fileData,
-                $results
+                new DataCollection(DestinationResultDTO::class, $results)
             );
         }
     }

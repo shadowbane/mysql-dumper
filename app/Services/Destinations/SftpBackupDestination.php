@@ -33,12 +33,32 @@ class SftpBackupDestination implements BackupDestinationInterface
         string $filename,
         array $metadata = []
     ): ?string {
-        try {
-            $finalPath = $this->path.'/'.$filename;
-            $contents = file_get_contents($temporaryFilePath);
+        $finalPath = $this->path.'/'.$filename;
 
-            if (! Storage::disk($this->disk)->put($finalPath, $contents)) {
-                throw new Exception("Failed to store backup to '{$this->disk}' SFTP disk");
+        try {
+            $stream = fopen($temporaryFilePath, 'rb');
+
+            if ($stream === false) {
+                throw new Exception("Unable to open temporary backup file '{$temporaryFilePath}' for reading");
+            }
+
+            try {
+                if (! Storage::disk($this->disk)->writeStream($finalPath, $stream)) {
+                    throw new Exception("Failed to store backup to '{$this->disk}' SFTP disk");
+                }
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
+
+            // Verify what actually landed — SFTP connections dropping midway
+            // are the classic source of silently truncated uploads.
+            $expectedSize = filesize($temporaryFilePath);
+            $storedSize = Storage::disk($this->disk)->size($finalPath);
+
+            if ($storedSize !== $expectedSize) {
+                throw new Exception("Stored file size mismatch on '{$this->disk}' SFTP disk: expected {$expectedSize} bytes, got {$storedSize}");
             }
 
             // Store record on file
@@ -47,11 +67,8 @@ class SftpBackupDestination implements BackupDestinationInterface
                 filename: $filename,
                 path: $finalPath,
                 sizeBytes: filesize($temporaryFilePath),
-                hash: hash('md5', $contents),
+                hash: hash_file('md5', $temporaryFilePath),
             );
-
-            // Free up memory by unsetting $contents
-            unset($contents);
 
             return $finalPath;
         } catch (Exception $e) {
@@ -61,8 +78,14 @@ class SftpBackupDestination implements BackupDestinationInterface
                 'previous' => $e->getPrevious(),
             ]);
 
-            if (Storage::disk($this->disk)->exists($finalPath)) {
-                Storage::disk($this->disk)->delete($finalPath);
+            // Best-effort cleanup of a partial upload; if the SFTP endpoint is
+            // still unreachable this would throw and mask the original error.
+            try {
+                if (Storage::disk($this->disk)->exists($finalPath)) {
+                    Storage::disk($this->disk)->delete($finalPath);
+                }
+            } catch (Exception $cleanupException) {
+                logger()->warning("Could not clean up partial upload on '{$this->disk}': {$cleanupException->getMessage()}");
             }
 
             throw new Exception("SFTP {$this->disk} destination failed: {$e->getMessage()}");

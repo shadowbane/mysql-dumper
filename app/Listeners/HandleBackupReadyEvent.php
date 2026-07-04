@@ -23,8 +23,11 @@ class HandleBackupReadyEvent implements ShouldQueue
     public function handle(BackupReadyEvent $event): void
     {
         try {
-            // Get all available backup destinations
-            $destinations = $this->backupDestinationService->getEnabledDestinations($event->backupLog);
+            // Fan out to ALL configured destinations, not just the ones whose live
+            // probe passes right now. A destination that is down at fan-out time
+            // must go through the retry machinery and end up failed/partially_failed
+            // — never silently skipped while the backup reports completed.
+            $destinations = $this->backupDestinationService->getDestinations();
 
             if (empty($destinations)) {
                 // No destinations configured, mark as failed
@@ -42,11 +45,14 @@ class HandleBackupReadyEvent implements ShouldQueue
                 return;
             }
 
-            // Create initial timeline entry for storing to destinations phase
+            // Create initial timeline entry for storing to destinations phase.
+            // temp_file_path lets backups:reconcile resume delivery from DB state
+            // if the queue loses a job (worker crash, dropped connection).
             $event->backupLog->recordStatusChange($event->backupLog->status, [
                 'storing_phase_started' => now()->toISOString(),
                 'total_destinations' => count($destinations),
-                'destinations_list' => array_map(fn(BackupDestinationInterface $dest) => $dest->getDestinationId(), $destinations),
+                'destinations_list' => array_values(array_map(fn(BackupDestinationInterface $dest) => $dest->getDestinationId(), $destinations)),
+                'temp_file_path' => $event->fileData->fullPath,
             ]);
 
             // Dispatch individual jobs for each destination

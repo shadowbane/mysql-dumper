@@ -34,12 +34,32 @@ class LocalBackupDestination implements BackupDestinationInterface
         string $filename,
         array $metadata = []
     ): ?string {
-        try {
-            $finalPath = $this->path.'/'.$filename;
-            $contents = file_get_contents($temporaryFilePath);
+        $finalPath = $this->path.'/'.$filename;
 
-            if (! Storage::disk($this->disk)->put($finalPath, $contents)) {
-                throw new Exception("Failed to store backup to '{$this->disk}' disk");
+        try {
+            $stream = fopen($temporaryFilePath, 'rb');
+
+            if ($stream === false) {
+                throw new Exception("Unable to open temporary backup file '{$temporaryFilePath}' for reading");
+            }
+
+            try {
+                if (! Storage::disk($this->disk)->writeStream($finalPath, $stream)) {
+                    throw new Exception("Failed to store backup to '{$this->disk}' disk");
+                }
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
+
+            // Verify what actually landed — an interrupted write can leave a
+            // truncated file without an error being raised.
+            $expectedSize = filesize($temporaryFilePath);
+            $storedSize = Storage::disk($this->disk)->size($finalPath);
+
+            if ($storedSize !== $expectedSize) {
+                throw new Exception("Stored file size mismatch on '{$this->disk}' disk: expected {$expectedSize} bytes, got {$storedSize}");
             }
 
             // Store record on file
@@ -48,16 +68,18 @@ class LocalBackupDestination implements BackupDestinationInterface
                 filename: $filename,
                 path: $finalPath,
                 sizeBytes: filesize($temporaryFilePath),
-                hash: hash('md5', $contents),
+                hash: hash_file('md5', $temporaryFilePath),
             );
-
-            // Free up memory by unsetting $contents
-            unset($contents);
 
             return $finalPath;
         } catch (Exception $e) {
-            if (Storage::disk($this->disk)->exists($finalPath)) {
-                Storage::disk($this->disk)->delete($finalPath);
+            // Best-effort cleanup of a partial write; never mask the original error.
+            try {
+                if (Storage::disk($this->disk)->exists($finalPath)) {
+                    Storage::disk($this->disk)->delete($finalPath);
+                }
+            } catch (Exception $cleanupException) {
+                logger()->warning("Could not clean up partial upload on '{$this->disk}': {$cleanupException->getMessage()}");
             }
 
             throw new Exception("{$this->disk} destination failed: {$e->getMessage()}");

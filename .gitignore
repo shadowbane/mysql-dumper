@@ -31,3 +31,5 @@ CLAUDE.md
 frankenphp
 frankenphp-worker.php
 laradumps.yaml
+# Added by code-review-graph
+.code-review-graph/

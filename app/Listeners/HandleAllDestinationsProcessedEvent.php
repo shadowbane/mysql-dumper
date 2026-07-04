@@ -26,15 +26,15 @@ class HandleAllDestinationsProcessedEvent implements ShouldQueue
             $successfulDestinations = [];
             $failedDestinations = [];
 
-            foreach ($results as $destinationId => $result) {
-                if ($result['success']) {
+            foreach ($results as $result) {
+                if ($result->success) {
                     $successes++;
-                    $successfulDestinations[] = $destinationId;
+                    $successfulDestinations[] = $result->destinationId;
                 } else {
                     $failures++;
                     $failedDestinations[] = [
-                        'destination_id' => $destinationId,
-                        'error' => $result['error'],
+                        'destination_id' => $result->destinationId,
+                        'error' => $result->error,
                     ];
                 }
             }
@@ -65,19 +65,9 @@ class HandleAllDestinationsProcessedEvent implements ShouldQueue
                     'backup_metadata' => array_merge($backupLog->metadata ?? [], $metadata),
                 ]);
 
-                // Get file information from the backup ready timeline
-                $backupReadyTimeline = $backupLog->timelines()
-                    ->where('status', 'backup_ready')
-                    ->orderBy('created_at', 'desc')
-                    ->first();
-
-                $filename = 'backup_file'; // Default fallback
-                $fileSize = 0;
-
-                if ($backupReadyTimeline && isset($backupReadyTimeline->metadata['backup_metadata'])) {
-                    $backupMetadata = $backupReadyTimeline->metadata['backup_metadata'];
-                    // You might need to adjust this based on how filename/size is stored
-                }
+                // Get file information from the backup file data carried by the event
+                $filename = $event->fileData->filename ?? 'backup_file';
+                $fileSize = $event->fileData->fileSize ?? 0;
 
                 // Emit backup completed event
                 BackupCompletedEvent::dispatch(

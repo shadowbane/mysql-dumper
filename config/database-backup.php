@@ -30,6 +30,23 @@ return [
     ],
 
     /*
+     * Delivery resilience.
+     *
+     * Controls how stubbornly a finished backup archive is delivered to each
+     * destination, and when a backup with no progress is considered stuck.
+     *
+     * Retry delay for attempt N is min(retry_base_seconds * 2^N, retry_max_seconds).
+     * With the defaults (5 attempts, base 60s) a destination outage of ~15 minutes
+     * is survived; raise max_attempts to survive longer outages.
+     */
+    'delivery' => [
+        'max_attempts' => (int) env('BACKUP_DELIVERY_MAX_ATTEMPTS', 5),
+        'retry_base_seconds' => (int) env('BACKUP_DELIVERY_RETRY_BASE_SECONDS', env('APP_ENV') === 'production' ? 60 : 1),
+        'retry_max_seconds' => (int) env('BACKUP_DELIVERY_RETRY_MAX_SECONDS', 3600),
+        'stuck_after_minutes' => (int) env('BACKUP_STUCK_AFTER_MINUTES', 120),
+    ],
+
+    /*
      * Member capabilities for backup logs.
      *
      * When a flag is enabled, users with the "member" role can perform that

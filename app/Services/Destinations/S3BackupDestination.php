@@ -33,12 +33,32 @@ class S3BackupDestination implements BackupDestinationInterface
         string $filename,
         array $metadata = []
     ): ?string {
-        try {
-            $finalPath = $this->path.'/'.$filename;
-            $contents = file_get_contents($temporaryFilePath);
+        $finalPath = $this->path.'/'.$filename;
 
-            if (! Storage::disk($this->disk)->put($finalPath, $contents)) {
-                throw new Exception("Failed to store backup to '{$this->disk}' disk");
+        try {
+            $stream = fopen($temporaryFilePath, 'rb');
+
+            if ($stream === false) {
+                throw new Exception("Unable to open temporary backup file '{$temporaryFilePath}' for reading");
+            }
+
+            try {
+                if (! Storage::disk($this->disk)->writeStream($finalPath, $stream)) {
+                    throw new Exception("Failed to store backup to '{$this->disk}' disk");
+                }
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
+
+            // Verify what actually landed — a connection dropped midway can
+            // leave a truncated object without Flysystem raising an error.
+            $expectedSize = filesize($temporaryFilePath);
+            $storedSize = Storage::disk($this->disk)->size($finalPath);
+
+            if ($storedSize !== $expectedSize) {
+                throw new Exception("Stored file size mismatch on '{$this->disk}' disk: expected {$expectedSize} bytes, got {$storedSize}");
             }
 
             // Store record on file
@@ -47,11 +67,8 @@ class S3BackupDestination implements BackupDestinationInterface
                 filename: $filename,
                 path: $finalPath,
                 sizeBytes: filesize($temporaryFilePath),
-                hash: hash('md5', $contents),
+                hash: hash_file('md5', $temporaryFilePath),
             );
-
-            // Free up memory by unsetting $contents
-            unset($contents);
 
             return $finalPath;
         } catch (Exception $e) {
@@ -61,8 +78,14 @@ class S3BackupDestination implements BackupDestinationInterface
                 'previous' => $e->getPrevious(),
             ]);
 
-            if (Storage::disk($this->disk)->exists($finalPath)) {
-                Storage::disk($this->disk)->delete($finalPath);
+            // Best-effort cleanup of a partial upload; if the endpoint is still
+            // unreachable this would throw and mask the original error.
+            try {
+                if (Storage::disk($this->disk)->exists($finalPath)) {
+                    Storage::disk($this->disk)->delete($finalPath);
+                }
+            } catch (Exception $cleanupException) {
+                logger()->warning("Could not clean up partial upload on '{$this->disk}': {$cleanupException->getMessage()}");
             }
 
             throw new Exception("{$this->disk} destination failed: {$e->getMessage()}");
