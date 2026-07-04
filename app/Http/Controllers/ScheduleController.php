@@ -38,7 +38,7 @@ class ScheduleController extends Controller
 
         // Search
         if ($request->filled('search')) {
-            $searchTerm = $request->get('search');
+            $searchTerm = $request->input('search');
             $query->where(function (Builder $q) use ($searchTerm) {
                 $q->where('name', 'like', "%{$searchTerm}%")
                     ->orWhere('description', 'like', "%{$searchTerm}%");
@@ -47,19 +47,19 @@ class ScheduleController extends Controller
 
         // Filter by status
         if ($request->filled('is_active')) {
-            $query->where('is_active', (bool) $request->get('is_active'));
+            $query->where('is_active', (bool) $request->input('is_active'));
         }
 
         // Filter by data source
         if ($request->filled('data_source_id')) {
             $query->whereHas('dataSources', function (Builder $q) use ($request) {
-                $q->where('data_sources.id', $request->get('data_source_id'));
+                $q->where('data_sources.id', $request->input('data_source_id'));
             });
         }
 
         // Sorting
-        $sortBy = $request->get('sort', 'name');
-        $direction = $request->get('direction', 'asc');
+        $sortBy = $request->input('sort', 'name');
+        $direction = $request->input('direction', 'asc');
 
         if (in_array($sortBy, ['name', 'hour', 'minute', 'is_active', 'created_at', 'last_run_at'])) {
             $query->orderBy($sortBy, $direction);

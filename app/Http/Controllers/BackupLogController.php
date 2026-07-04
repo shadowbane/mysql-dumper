@@ -44,36 +44,36 @@ class BackupLogController extends Controller
 
         // Filter by data source
         if ($request->filled('data_source_id')) {
-            $query->where('data_source_id', $request->get('data_source_id'));
+            $query->where('data_source_id', $request->input('data_source_id'));
         }
 
         // Filter by status
         if ($request->filled('status')) {
-            $query->where('status', $request->get('status'));
+            $query->where('status', $request->input('status'));
         }
 
         // Filter by type
         if ($request->filled('type')) {
-            $query->where('type', $request->get('type'));
+            $query->where('type', $request->input('type'));
         }
 
         // Filter by date range
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->get('date_from'));
+            $query->whereDate('created_at', '>=', $request->input('date_from'));
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->get('date_to'));
+            $query->whereDate('created_at', '<=', $request->input('date_to'));
         }
 
         // Filter by locked status
         if ($request->filled('locked')) {
-            $query->where('locked', $request->get('locked'));
+            $query->where('locked', $request->input('locked'));
         }
 
         // Sorting
-        $sortBy = $request->get('sort', 'created_at');
-        $sortDirection = $request->get('direction', 'desc');
+        $sortBy = $request->input('sort', 'created_at');
+        $sortDirection = $request->input('direction', 'desc');
 
         $query->orderBy($sortBy, $sortDirection);
 

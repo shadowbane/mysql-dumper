@@ -47,7 +47,7 @@ class DataSourceController extends Controller
 
         // Search
         if ($request->filled('search')) {
-            $searchTerm = $request->get('search');
+            $searchTerm = $request->input('search');
             $query->where(function (Builder $q) use ($searchTerm) {
                 $q->where('name', 'like', "%{$searchTerm}%")
                     ->orWhere('host', 'like', "%{$searchTerm}%")
@@ -58,12 +58,12 @@ class DataSourceController extends Controller
 
         // Filter by is_active
         if ($request->filled('is_active')) {
-            $query->where('is_active', (bool) $request->get('is_active'));
+            $query->where('is_active', (bool) $request->input('is_active'));
         }
 
         // Filter by backup status
         if ($request->filled('backup_status')) {
-            $backupStatus = $request->get('backup_status');
+            $backupStatus = $request->input('backup_status');
 
             switch ($backupStatus) {
                 case 'healthy':
@@ -90,8 +90,8 @@ class DataSourceController extends Controller
         }
 
         // Sorting
-        $sortBy = $request->get('sort_by', 'name');
-        $sortDirection = $request->get('sort_direction', 'asc');
+        $sortBy = $request->input('sort_by', 'name');
+        $sortDirection = $request->input('sort_direction', 'asc');
 
         if ($sortBy === 'backup_status') {
             // Complex sorting for backup status
@@ -166,7 +166,7 @@ class DataSourceController extends Controller
 
                     return redirect()->route('data-sources.index')
                         ->with('success', 'Data source created successfully.');
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     DB::rollBack();
                     throw $e;
                 }
@@ -232,7 +232,7 @@ class DataSourceController extends Controller
 
                     return redirect()->route('data-sources.index')
                         ->with('success', 'Data source updated successfully.');
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     DB::rollBack();
                     throw $e;
                 }
@@ -281,7 +281,7 @@ class DataSourceController extends Controller
 
                     return redirect()->route('data-sources.index')
                         ->with('success', 'Data source deleted successfully.');
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     DB::rollBack();
                     throw $e;
                 }

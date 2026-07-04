@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\BackupServiceInterface;
+use App\Services\BackupService;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -21,8 +23,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(
-            \App\Contracts\BackupServiceInterface::class,
-            \App\Services\BackupService::class
+            BackupServiceInterface::class,
+            BackupService::class
         );
     }
 
@@ -56,7 +58,7 @@ class AppServiceProvider extends ServiceProvider
             Collection::macro('paginate',
                 function ($perPage = null, $columns = ['*'], $pageName = 'page', $page = null) {
                     if (is_null($perPage)) {
-                        $perPage = request()->get('perPage', null);
+                        $perPage = request()->perPage ?? null;
                         if (blank($perPage)) {
                             // set from session
                             $perPage = session()->get('perPage', 10);
@@ -66,23 +68,28 @@ class AppServiceProvider extends ServiceProvider
 
                     // Convert the collection items to an array to match Eloquent's output
                     $results = $this->forPage($page, $perPage)->values();
+                    $total = $this->toBase()->count();
 
-                    return new LengthAwarePaginator(
-                        $results,
-                        $this->count(),
-                        $perPage,
-                        $page,
-                        [
-                            'path' => Paginator::resolveCurrentPath(),
-                            'pageName' => $pageName,
-                        ]
-                    );
+                    return new class($results, $total, $perPage, $page, ['path' => Paginator::resolveCurrentPath(), 'pageName' => $pageName]) extends LengthAwarePaginator {
+                        public string $page_name;
+
+                        public function __construct($items, $total, $perPage, $currentPage, array $options)
+                        {
+                            $this->page_name = $options['pageName'] ?? 'page';
+                            parent::__construct($items, $total, $perPage, $currentPage, $options);
+                        }
+
+                        public function toArray(): array
+                        {
+                            return array_merge(parent::toArray(), ['page_name' => $this->page_name]);
+                        }
+                    };
                 });
         }
 
         // Extend laravel default pagination
         Builder::macro('customPaginate', function ($perPage = null, $columns = ['*'], $pageName = 'page', $page = null, $total = null) {
-            $perPage = request()->get('perPage', null);
+            $perPage = request()->input('perPage', null);
             // Use session's per page first, then use the default per page
             if (blank($perPage)) {
                 $perPage = session()->get('perPage', 10);
@@ -98,10 +105,20 @@ class AppServiceProvider extends ServiceProvider
                 ? $this->forPage($page, $perPage)->get($columns)
                 : $this->model->newCollection();
 
-            return $this->paginator($results, $total, $perPage, $page, [
-                'path' => Paginator::resolveCurrentPath(),
-                'pageName' => $pageName,
-            ]);
+            return new class($results, $total, $perPage, $page, ['path' => Paginator::resolveCurrentPath(), 'pageName' => $pageName]) extends LengthAwarePaginator {
+                public string $page_name;
+
+                public function __construct($items, $total, $perPage, $currentPage, array $options)
+                {
+                    $this->page_name = $options['pageName'] ?? 'page';
+                    parent::__construct($items, $total, $perPage, $currentPage, $options);
+                }
+
+                public function toArray(): array
+                {
+                    return array_merge(parent::toArray(), ['page_name' => $this->page_name]);
+                }
+            };
         });
     }
 }

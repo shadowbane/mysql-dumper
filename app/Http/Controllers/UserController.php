@@ -30,7 +30,7 @@ class UserController extends Controller
 
         // Search
         if ($request->filled('search')) {
-            $searchTerm = $request->get('search');
+            $searchTerm = $request->input('search');
             $query->where(function (Builder $q) use ($searchTerm) {
                 $q->where('name', 'like', "%{$searchTerm}%")
                     ->orWhere('email', 'like', "%{$searchTerm}%");
@@ -40,13 +40,13 @@ class UserController extends Controller
         // Filter by role
         if ($request->filled('role')) {
             $query->whereHas('roles', function (Builder $q) use ($request) {
-                $q->where('roles.id', $request->get('role'));
+                $q->where('roles.id', $request->input('role'));
             });
         }
 
         // Sorting
-        $sortBy = $request->get('sort_by', 'name');
-        $sortDirection = $request->get('sort_direction', 'asc');
+        $sortBy = $request->input('sort_by', 'name');
+        $sortDirection = $request->input('sort_direction', 'asc');
         $query->orderBy($sortBy, $sortDirection);
 
         // Pagination
