@@ -30,14 +30,15 @@ class HandleBackupDestinationRetryEvent implements ShouldQueue
             ->first();
 
         if ($timeline) {
-            $multiplier = app()->environment() === 'production' ? 60 : 1; // multiply by 60s.
+            // delay_seconds is not written here: StoreBackupToDestinationJob already
+            // recorded the authoritative config-driven value when scheduling the retry,
+            // and recomputing it independently caused the two to disagree.
             $existingMetadata = $timeline->metadata ?? [];
             $updatedMetadata = array_merge($existingMetadata, [
                 'retry_scheduled' => true,
                 'retry_count' => $event->retryCount,
                 'scheduled_at' => now()->toISOString(),
                 'last_error' => $event->lastExceptionMessage,
-                'delay_seconds' => pow(2, $event->retryCount - 1) * $multiplier, // Exponential backoff
                 'will_retry' => true,
             ]);
 

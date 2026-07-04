@@ -90,7 +90,7 @@ class BackupService implements BackupServiceInterface
      *
      * @return BackupFileDTO
      */
-    public function backup(ConnectionDTO $connection, BackupLog $backupLog): \App\DTO\BackupFileDTO
+    public function backup(ConnectionDTO $connection, BackupLog $backupLog): BackupFileDTO
     {
         $this->validateConnection($connection);
 
@@ -329,7 +329,9 @@ class BackupService implements BackupServiceInterface
                 'lock-tables' => false,
                 'add-locks' => true,
                 'extended-insert' => true,
-                'disable-foreign-keys-check' => true,
+                // 'disable-foreign-keys-check' is intentionally NOT passed: it is a
+                // deprecated no-op in mysqldump-php 2.x (the dump header always emits
+                // FOREIGN_KEY_CHECKS=0 for restore) and passing it throws in 3.x.
 
                 // Only dump this specific table
                 'include-tables' => [$table],
