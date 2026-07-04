@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c923dc454a5ea2c3a4556e8910099d41",
+    "content-hash": "13c3c0ebdc6ed5cf6541c682b4cbf530",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -903,6 +903,62 @@
                 }
             ],
             "time": "2025-12-27T19:43:20+00:00"
+        },
+        {
+            "name": "graylog2/gelf-php",
+            "version": "2.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/bzikarsky/gelf-php.git",
+                "reference": "d592ca54e81f1d678470e100788e87e319bd923b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/bzikarsky/gelf-php/zipball/d592ca54e81f1d678470e100788e87e319bd923b",
+                "reference": "d592ca54e81f1d678470e100788e87e319bd923b",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0",
+                "psr/log": "^1|^2|^3"
+            },
+            "conflict": {
+                "monolog/monolog": "^1"
+            },
+            "provide": {
+                "psr/log-implementation": "3.0.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.6|^10.1",
+                "squizlabs/php_codesniffer": "^3.6",
+                "vimeo/psalm": "^5.11"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Gelf\\": "src/Gelf"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Benjamin Zikarsky",
+                    "email": "benjamin@familie-zikarsky.de"
+                },
+                {
+                    "name": "gelf-php contributors",
+                    "homepage": "https://github.com/bzikarsky/gelf-php/contributors"
+                }
+            ],
+            "description": "A php implementation to send log-messages to a GELF compatible backend like Graylog2.",
+            "support": {
+                "issues": "https://github.com/bzikarsky/gelf-php/issues",
+                "source": "https://github.com/bzikarsky/gelf-php/tree/2.0.2"
+            },
+            "time": "2025-01-20T15:05:32+00:00"
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -4694,6 +4750,75 @@
                 "source": "https://github.com/ramsey/uuid/tree/4.9.3"
             },
             "time": "2026-06-18T03:57:49+00:00"
+        },
+        {
+            "name": "shadowbane/laravel-gelf-logger",
+            "version": "v2.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/shadowbane/laravel-gelf-logger.git",
+                "reference": "6a807250b1095788f7d7bb54f991c4ad3e6ffd71"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/shadowbane/laravel-gelf-logger/zipball/6a807250b1095788f7d7bb54f991c4ad3e6ffd71",
+                "reference": "6a807250b1095788f7d7bb54f991c4ad3e6ffd71",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "graylog2/gelf-php": "^2.0",
+                "monolog/monolog": "^3.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.0",
+                "orchestra/testbench": "^9.0 || ^10.0",
+                "phpstan/phpstan": "^1.8"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Shadowbane\\GelfLogger\\Providers\\GelfServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Shadowbane\\GelfLogger\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Shadowbane",
+                    "homepage": "https://github.com/shadowbane"
+                }
+            ],
+            "description": "A custom Laravel Monolog logger for sending logs to Graylog via GELF protocol",
+            "homepage": "https://github.com/shadowbane/laravel-gelf-logger",
+            "keywords": [
+                "formatter",
+                "gelf",
+                "gelf-logger",
+                "gelf-php",
+                "graylog",
+                "handler",
+                "laravel",
+                "log",
+                "logger",
+                "monolog",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/shadowbane/laravel-gelf-logger/issues",
+                "source": "https://github.com/shadowbane/laravel-gelf-logger/tree/v2.0.0"
+            },
+            "time": "2026-03-14T06:55:27+00:00"
         },
         {
             "name": "spatie/db-dumper",
